@@ -1182,7 +1182,6 @@
     byId("saveExamDateBtn").addEventListener("click", onSaveExamDate);
     byId("saveSettingsBtn").addEventListener("click", onSaveSettings);
     byId("addTopicBtn").addEventListener("click", onAddTopic);
-    byId("problemMenuTopicSelect").addEventListener("change", renderProblemMenu);
     byId("problemMenuList").addEventListener("click", onProblemMenuListClick);
     byId("generatePlanBtn").addEventListener("click", () => {
       generateTodayPlan(true);
@@ -2461,14 +2460,8 @@
   }
 
   function renderProblemMenu() {
-    const select = byId("problemMenuTopicSelect");
     const summary = byId("problemMenuSummary");
     const list = byId("problemMenuList");
-    const previousTopicId = select.value;
-
-    select.innerHTML = state.topics
-      .map((topic) => `<option value="${escapeAttr(topic.id)}">${escapeHtml(topic.name)}</option>`)
-      .join("");
 
     if (state.topics.length === 0) {
       summary.innerHTML = "<p class=\"note\">問題セットを追加すると問題メニューが表示されます。</p>";
@@ -2476,25 +2469,13 @@
       return;
     }
 
-    const selectedTopicId = state.topics.some((topic) => topic.id === previousTopicId)
-      ? previousTopicId
-      : state.topics[0].id;
-    select.value = selectedTopicId;
-
-    const topic = state.topics.find((item) => item.id === selectedTopicId);
-    if (!topic) {
-      summary.innerHTML = "<p class=\"note\">分野の読み込みに失敗しました。</p>";
-      list.innerHTML = "";
-      return;
-    }
-
-    const progress = state.progress[topic.id] || defaultProgress();
-    const sections = getTopicSections(topic);
-    const totalSections = sections.length;
-    const clearedSections = Math.min(totalSections, progress.sectionClears);
-    const currentSection = getCurrentSection(topic, progress.nextQuestion);
+    const totalQuestions = state.topics.reduce((sum, topic) => sum + topic.total, 0);
+    const totalSections = state.topics.reduce((sum, topic) => sum + getTopicSections(topic).length, 0);
+    const clearedSections = state.topics.reduce((sum, topic) => {
+      const progress = state.progress[topic.id] || defaultProgress();
+      return sum + Math.min(getTopicSections(topic).length, progress.sectionClears);
+    }, 0);
     const miniLeft = Math.max(0, SECTION_CLEAR_TARGET - state.trainingCycle.sectionClearsSinceMiniTest);
-    const stars = `${"★".repeat(clearedSections)}${"☆".repeat(Math.max(0, totalSections - clearedSections))}`;
     const sectionGaugePercent = totalSections > 0
       ? Math.round((clearedSections / totalSections) * 100)
       : 0;
@@ -2503,11 +2484,11 @@
       : `現在の小テストまで: あと${miniLeft}セクション。`;
 
     summary.innerHTML = `
-      <p class="note">総問題数 ${topic.total}問 / 総セクション ${totalSections} / クリア ${clearedSections}</p>
-      <p class="note">進捗スター: ${stars}</p>
+      <p class="note">総法数 ${state.topics.length} / 総問題数 ${totalQuestions}問 / 総セクション ${totalSections}</p>
+      <p class="note">クリア: ★ ${clearedSections}/${totalSections}</p>
       <div class="progressWrap compactGauge">
         <div class="progressMeta">
-          <span>${escapeHtml(topic.name)} の進捗</span>
+          <span>全体セクション進捗</span>
           <span>${clearedSections}/${totalSections} (${sectionGaugePercent}%)</span>
         </div>
         <div class="progressTrack"><div class="progressFill" style="width: ${sectionGaugePercent}%"></div></div>
@@ -2515,43 +2496,73 @@
       <p class="note">${cycleNote}</p>
     `;
 
-    list.innerHTML = sections
-      .map((section) => {
-        const count = section.end - section.start + 1;
-        const isCleared = section.index < clearedSections;
-        const isCurrent = !progress.mastered && section.index === currentSection.index;
-        const miniHint = state.trainingCycle.pendingMiniTest
-          ? "先に小テストを実施"
-          : isCleared
-            ? "クリア済み"
-            : isCurrent
-              ? `クリアで小テストまであと${Math.max(0, miniLeft - 1)}`
-              : `小テストまであと${miniLeft}`;
-        const chips = [];
-        for (let questionNo = section.start; questionNo <= section.end; questionNo += 1) {
-          chips.push(`
-            <button
-              type="button"
-              class="questionChip"
-              data-action="single"
-              data-topic-id="${escapeAttr(topic.id)}"
-              data-question-no="${questionNo}"
-              data-section-name="${escapeAttr(section.name)}"
-            >Q${questionNo}</button>
-          `);
-        }
+    const firstActiveTopic = state.topics.find((topic) => {
+      const progress = state.progress[topic.id] || defaultProgress();
+      return !progress.mastered;
+    });
+    const firstActiveTopicId = firstActiveTopic ? firstActiveTopic.id : state.topics[0].id;
+
+    list.innerHTML = state.topics
+      .map((topic, topicIndex) => {
+        const progress = state.progress[topic.id] || defaultProgress();
+        const sections = getTopicSections(topic);
+        const topicTotalSections = sections.length;
+        const topicClearedSections = Math.min(topicTotalSections, progress.sectionClears);
+        const topicPercent = topicTotalSections > 0
+          ? Math.round((topicClearedSections / topicTotalSections) * 100)
+          : 0;
+        const currentSection = getCurrentSection(topic, progress.nextQuestion);
+        const topicOpen = topic.id === firstActiveTopicId ? "open" : "";
+        const sectionHtml = sections.map((section) => {
+          const sectionNo = section.index + 1;
+          const count = section.end - section.start + 1;
+          const isCleared = section.index < topicClearedSections;
+          const isCurrent = !progress.mastered && section.index === currentSection.index;
+          const sectionOpen = topic.id === firstActiveTopicId && isCurrent ? "open" : "";
+          const miniHint = state.trainingCycle.pendingMiniTest
+            ? "先に小テスト"
+            : isCleared
+              ? "クリア済み"
+              : isCurrent
+                ? `次の小テストまであと${Math.max(0, miniLeft - 1)}`
+                : `小テストまであと${miniLeft}`;
+          const chips = [];
+          for (let questionNo = section.start; questionNo <= section.end; questionNo += 1) {
+            chips.push(`
+              <button
+                type="button"
+                class="questionChip"
+                data-action="single"
+                data-topic-id="${escapeAttr(topic.id)}"
+                data-question-no="${questionNo}"
+                data-section-name="${escapeAttr(section.name)}"
+              >Q${questionNo}</button>
+            `);
+          }
+
+          return `
+            <details class="sectionFold" ${sectionOpen}>
+              <summary class="sectionFoldSummary">
+                <span class="sectionFoldTitle">${isCleared ? "★" : "☆"} S${sectionNo} ${escapeHtml(section.name)}</span>
+                <span class="sectionFoldMeta">Q${section.start}-${section.end} / ${count}問 / ${miniHint}</span>
+              </summary>
+              <div class="sectionFoldBody">
+                <div class="questionChipWrap">${chips.join("")}</div>
+              </div>
+            </details>
+          `;
+        }).join("");
 
         return `
-          <article class="sectionItem ${isCurrent ? "current" : ""}">
-            <div class="sectionItemHead">
-              <p class="sectionTitle">
-                <span class="sectionStar ${isCleared ? "done" : "todo"}">${isCleared ? "★" : "☆"}</span>
-                ${escapeHtml(section.name)}
-              </p>
-              <p class="sectionMeta">Q${section.start}-${section.end} / ${count}問 / ${miniHint}</p>
+          <details class="topicFold" ${topicOpen}>
+            <summary class="topicFoldSummary">
+              <span class="topicFoldTitle">${topicIndex + 1}. ${escapeHtml(topic.name)}</span>
+              <span class="topicFoldMeta">★ ${topicClearedSections}/${topicTotalSections} (${topicPercent}%)</span>
+            </summary>
+            <div class="topicFoldBody">
+              ${sectionHtml}
             </div>
-            <div class="questionChipWrap">${chips.join("")}</div>
-          </article>
+          </details>
         `;
       })
       .join("");
