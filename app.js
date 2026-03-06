@@ -785,6 +785,8 @@
   };
 
   let mockTimerId = null;
+  let clockTimerId = null;
+  let lastClockDate = "";
 
   let state = loadState();
   syncStateShape();
@@ -2587,10 +2589,12 @@
     renderResearch();
     applyFocusTabLayout(false);
     ensureMockTimer();
+    ensureClockTimer();
   }
 
   function renderDashboard() {
     byId("examDateInput").value = state.settings.examDate;
+    renderCurrentDateTime();
 
     const examDaysLeft = daysUntil(state.settings.examDate);
     const completeDaysLeft = getDaysUntilCompleteDate();
@@ -2624,6 +2628,34 @@
     }
 
     byId("examDateNote").textContent = note;
+  }
+
+  function ensureClockTimer() {
+    if (clockTimerId) {
+      return;
+    }
+
+    lastClockDate = todayISO();
+    clockTimerId = setInterval(() => {
+      renderCurrentDateTime();
+      const nowDate = todayISO();
+      if (nowDate !== lastClockDate) {
+        lastClockDate = nowDate;
+        renderAll();
+      }
+    }, 1000);
+  }
+
+  function renderCurrentDateTime() {
+    const now = new Date();
+    const weekdays = ["日", "月", "火", "水", "木", "金", "土"];
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, "0");
+    const d = String(now.getDate()).padStart(2, "0");
+    const hh = String(now.getHours()).padStart(2, "0");
+    const mm = String(now.getMinutes()).padStart(2, "0");
+    const ss = String(now.getSeconds()).padStart(2, "0");
+    byId("currentDateTime").textContent = `現在日時: ${y}/${m}/${d}(${weekdays[now.getDay()]}) ${hh}:${mm}:${ss}`;
   }
 
   function renderSettings() {

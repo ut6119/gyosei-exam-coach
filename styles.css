@@ -432,6 +432,16 @@ button.ng {
   padding: 4px 7px;
 }
 
+#currentDateTime {
+  margin-top: 8px;
+  background: #e9f5ff;
+  border-color: #c7dff7;
+  border-left-color: #4d86c7;
+  color: #1d4e7d;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
 .summaryBox {
   border: 1px solid #cadbef;
   border-radius: 12px;
