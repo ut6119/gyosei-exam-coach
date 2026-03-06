@@ -2302,10 +2302,16 @@
     const questionPanel = byId("drillQuestionPanel");
     const reviewPanel = byId("drillReviewPanel");
     const choicesWrap = byId("drillChoicesWrap");
+    const nextBtn = byId("applyReviewResultBtn");
+    const skipBtn = byId("skipBtn");
+    const editBtn = byId("editCurrentQuestionBtn");
 
     if (!state.drill.active) {
       idle.classList.remove("hidden");
       active.classList.add("hidden");
+      nextBtn.classList.add("hidden");
+      skipBtn.classList.remove("hidden");
+      editBtn.classList.remove("hidden");
       byId("drillMessage").textContent = state.drill.message || "";
       byId("drillPrimerLead").textContent = "";
       byId("drillPrimerList").innerHTML = "";
@@ -2347,6 +2353,9 @@
       primerPanel.classList.remove("hidden");
       questionPanel.classList.add("hidden");
       reviewPanel.classList.add("hidden");
+      nextBtn.classList.add("hidden");
+      skipBtn.classList.remove("hidden");
+      editBtn.classList.remove("hidden");
 
       byId("drillPrimerLead").textContent = textbook.lead;
       byId("drillPrimerList").innerHTML = textbook.points
@@ -2388,6 +2397,9 @@
 
     if (state.drill.showExplanation) {
       reviewPanel.classList.remove("hidden");
+      nextBtn.classList.remove("hidden");
+      skipBtn.classList.add("hidden");
+      editBtn.classList.add("hidden");
       const isCorrect = state.drill.pendingResult === true;
       const picked = detail.choices[state.drill.selectedChoice] || "未選択";
       const correct = detail.choices[detail.correctIndex] || "";
@@ -2405,6 +2417,9 @@
     }
 
     reviewPanel.classList.add("hidden");
+    nextBtn.classList.add("hidden");
+    skipBtn.classList.remove("hidden");
+    editBtn.classList.remove("hidden");
     byId("drillResultLine").textContent = "";
     byId("drillResultLine").classList.remove("okText", "ngText");
     byId("drillChoiceLine").textContent = "";

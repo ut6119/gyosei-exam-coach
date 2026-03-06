@@ -241,6 +241,15 @@ button.ng {
   flex: 1 1 150px;
 }
 
+#drillReviewPanel .note {
+  margin: 2px 0;
+  line-height: 1.25;
+}
+
+#drillReviewPanel .questionHead {
+  margin: 2px 0 4px;
+}
+
 .choiceList {
   display: grid;
   gap: 8px;
@@ -283,6 +292,20 @@ button.ng {
   width: 92px;
 }
 
+#topicsTableWrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+#topicsTableWrap .table {
+  min-width: 760px;
+}
+
+#topicsTableWrap .table th,
+#topicsTableWrap .table td {
+  white-space: nowrap;
+}
+
 footer {
   text-align: center;
   color: var(--muted);
@@ -290,7 +313,19 @@ footer {
 }
 
 @media (max-width: 720px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
   .kpiWrap {
     grid-template-columns: 1fr;
+  }
+
+  .homeNavGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  #topicsTableWrap .table {
+    min-width: 680px;
   }
 }
