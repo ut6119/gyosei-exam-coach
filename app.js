@@ -3,6 +3,7 @@
 (() => {
   const STORAGE_KEY = "gyoseiExamCoach.v1";
   const RESEARCH_UPDATED_AT = "2026-03-06";
+  const COMPLETE_BUFFER_DAYS = 7;
 
   const OFFICIAL_SPEC_TEXT = "公式情報ベース: 試験時間180分(13:00-16:00) / 出題60問(法令等46問+基礎知識14問) / 合格基準: 法令等122点以上・基礎知識24点以上・総得点180点以上";
 
@@ -822,6 +823,18 @@
     };
   }
 
+  function defaultMiniTest() {
+    return {
+      active: false,
+      queue: [],
+      pointer: 0,
+      correctCount: 0,
+      wrongCount: 0,
+      holdCount: 0,
+      message: ""
+    };
+  }
+
   function defaultState() {
     const topics = DEFAULT_TOPICS.map((topic) => ({ ...topic }));
     const progress = {};
@@ -851,6 +864,7 @@
       },
       drill: defaultDrill(),
       mock: defaultMock(),
+      miniTest: defaultMiniTest(),
       questionEditor: {
         topicId: topics[0].id,
         questionNo: 1,
@@ -899,6 +913,7 @@
       : fresh.todayPlan;
     state.drill = state.drill && typeof state.drill === "object" ? state.drill : defaultDrill();
     state.mock = state.mock && typeof state.mock === "object" ? state.mock : defaultMock();
+    state.miniTest = state.miniTest && typeof state.miniTest === "object" ? state.miniTest : defaultMiniTest();
     state.questionEditor = state.questionEditor && typeof state.questionEditor === "object"
       ? state.questionEditor
       : fresh.questionEditor;
@@ -951,6 +966,14 @@
     state.mock.correctCount = Math.max(0, Math.round(Number(state.mock.correctCount) || 0));
     state.mock.wrongCount = Math.max(0, Math.round(Number(state.mock.wrongCount) || 0));
     state.mock.holdCount = Math.max(0, Math.round(Number(state.mock.holdCount) || 0));
+
+    if (!Array.isArray(state.miniTest.queue)) {
+      state.miniTest.queue = [];
+    }
+    state.miniTest.pointer = Math.max(0, Math.round(Number(state.miniTest.pointer) || 0));
+    state.miniTest.correctCount = Math.max(0, Math.round(Number(state.miniTest.correctCount) || 0));
+    state.miniTest.wrongCount = Math.max(0, Math.round(Number(state.miniTest.wrongCount) || 0));
+    state.miniTest.holdCount = Math.max(0, Math.round(Number(state.miniTest.holdCount) || 0));
 
     const existingTopicIds = new Set(state.topics.map((topic) => topic.id));
 
@@ -1096,6 +1119,7 @@
   }
 
   function bindEvents() {
+    byId("homeNavGrid").addEventListener("click", onHomeNavClick);
     byId("saveExamDateBtn").addEventListener("click", onSaveExamDate);
     byId("saveSettingsBtn").addEventListener("click", onSaveSettings);
     byId("addTopicBtn").addEventListener("click", onAddTopic);
@@ -1122,9 +1146,33 @@
     byId("mockChoicesWrap").addEventListener("click", onMockChoiceClick);
     byId("mockSkipBtn").addEventListener("click", () => handleMockAnswer("hold"));
 
+    byId("startMiniTestBtn").addEventListener("click", onStartMiniTest);
+    byId("finishMiniTestBtn").addEventListener("click", onFinishMiniTest);
+    byId("miniTestChoicesWrap").addEventListener("click", onMiniTestChoiceClick);
+
     byId("glossarySearchInput").addEventListener("input", renderGlossary);
     byId("addTermBtn").addEventListener("click", onAddTerm);
     byId("glossaryTableWrap").addEventListener("click", onGlossaryTableClick);
+  }
+
+  function onHomeNavClick(event) {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+    const button = target.closest("button[data-target]");
+    if (!(button instanceof HTMLButtonElement)) {
+      return;
+    }
+    const cardId = button.dataset.target;
+    if (!cardId) {
+      return;
+    }
+    const card = document.getElementById(cardId);
+    if (!card) {
+      return;
+    }
+    card.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   function onSaveExamDate() {
@@ -1238,6 +1286,9 @@
       if (state.mock.active) {
         finishMockExam("問題セット変更のため模試を終了しました。");
       }
+      if (state.miniTest.active) {
+        finishMiniTest("問題セット変更のため小テストを終了しました。");
+      }
 
       state.todayPlan = { date: "", tasks: [] };
 
@@ -1309,6 +1360,15 @@
   }
 
   function onStartDrill() {
+    if (state.mock.active) {
+      alert("模試が進行中です。先に模試を終了してください。");
+      return;
+    }
+    if (state.miniTest.active) {
+      alert("小テストが進行中です。先に小テストを終了してください。");
+      return;
+    }
+
     const today = todayISO();
     if (state.todayPlan.date !== today || state.todayPlan.tasks.length === 0) {
       generateTodayPlan(true);
@@ -1692,6 +1752,14 @@
       alert("模試が進行中です。終了してから再開してください。");
       return;
     }
+    if (state.drill.active) {
+      alert("反復ドリルが進行中です。先にドリルを終了してください。");
+      return;
+    }
+    if (state.miniTest.active) {
+      alert("小テストが進行中です。先に小テストを終了してください。");
+      return;
+    }
 
     const queue = buildMockQueue();
     if (queue.length === 0) {
@@ -1783,6 +1851,117 @@
 
     saveState();
     renderMockExam();
+    renderPitfalls();
+  }
+
+  function onStartMiniTest() {
+    if (state.miniTest.active) {
+      alert("小テストが進行中です。");
+      return;
+    }
+    if (state.drill.active) {
+      alert("反復ドリルが進行中です。先にドリルを終えてください。");
+      return;
+    }
+    if (state.mock.active) {
+      alert("模試が進行中です。先に模試を終了してください。");
+      return;
+    }
+
+    const queue = buildMiniTestQueue();
+    if (queue.length === 0) {
+      state.miniTest.message = "小テスト対象の問題を作れませんでした。問題セットを確認してください。";
+      saveState();
+      renderMiniTest();
+      return;
+    }
+
+    state.miniTest = {
+      active: true,
+      queue,
+      pointer: 0,
+      correctCount: 0,
+      wrongCount: 0,
+      holdCount: 0,
+      message: "小テスト開始。10問をテンポよく解きます。"
+    };
+
+    saveState();
+    renderMiniTest();
+  }
+
+  function onFinishMiniTest() {
+    finishMiniTest("小テストを手動終了しました。");
+  }
+
+  function onMiniTestChoiceClick(event) {
+    if (!state.miniTest.active) {
+      return;
+    }
+
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+    const button = target.closest("button[data-choice-index]");
+    if (!(button instanceof HTMLButtonElement)) {
+      return;
+    }
+
+    const picked = Number(button.dataset.choiceIndex);
+    if (!Number.isInteger(picked) || picked < 0 || picked > 2) {
+      return;
+    }
+
+    const item = state.miniTest.queue[state.miniTest.pointer];
+    if (!item) {
+      finishMiniTest("小テストを終了しました。");
+      return;
+    }
+
+    const detail = getQuestionDetail(item.topicId, item.questionNo, false);
+    const isCorrect = picked === detail.correctIndex;
+
+    if (isCorrect) {
+      state.miniTest.correctCount += 1;
+      state.miniTest.message = "正解です。";
+    } else {
+      state.miniTest.wrongCount += 1;
+      state.miniTest.message = `不正解です。正解: ${detail.choices[detail.correctIndex]}`;
+      const heatKey = `${item.topicId}:${item.questionNo}`;
+      state.pitfallHeatmap[heatKey] = (state.pitfallHeatmap[heatKey] || 0) + 1;
+    }
+
+    state.miniTest.pointer += 1;
+
+    if (state.miniTest.pointer >= state.miniTest.queue.length) {
+      finishMiniTest("10問完了。小テストを終了しました。");
+      return;
+    }
+
+    saveState();
+    renderMiniTest();
+    renderPitfalls();
+  }
+
+  function finishMiniTest(message) {
+    if (!state.miniTest.active) {
+      state.miniTest.message = message || state.miniTest.message;
+      saveState();
+      renderMiniTest();
+      return;
+    }
+
+    const total = state.miniTest.queue.length;
+    const rate = total > 0 ? Math.round((state.miniTest.correctCount / total) * 100) : 0;
+
+    state.miniTest = {
+      ...defaultMiniTest(),
+      message: `${message} 結果: 正解${state.miniTest.correctCount}/${total} (${rate}%), 不正解${state.miniTest.wrongCount}`
+    };
+
+    saveState();
+    renderMiniTest();
     renderPitfalls();
   }
 
@@ -1883,6 +2062,52 @@
     return queue;
   }
 
+  function buildMiniTestQueue() {
+    const desiredCount = 10;
+    const today = todayISO();
+    if (state.todayPlan.date !== today || state.todayPlan.tasks.length === 0) {
+      generateTodayPlan(false);
+    }
+
+    let topicIds = state.todayPlan.tasks
+      .map((task) => task.topicId)
+      .filter((topicId) => state.topics.some((topic) => topic.id === topicId));
+
+    if (topicIds.length === 0) {
+      const studyDaysLeft = getDaysUntilCompleteDate();
+      topicIds = state.topics
+        .map((topic) => ({ topic, score: topicScore(topic, studyDaysLeft) }))
+        .filter((item) => item.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 3)
+        .map((item) => item.topic.id);
+    }
+
+    if (topicIds.length === 0) {
+      return [];
+    }
+
+    const queue = [];
+    for (let i = 0; i < desiredCount; i += 1) {
+      const topicId = topicIds[i % topicIds.length];
+      const topic = state.topics.find((item) => item.id === topicId);
+      if (!topic) {
+        continue;
+      }
+
+      const progress = state.progress[topicId] || defaultProgress();
+      const questionNo = ((progress.nextQuestion + i - 1) % Math.max(1, topic.total)) + 1;
+
+      queue.push({
+        topicId,
+        questionNo,
+        format: "小テスト"
+      });
+    }
+
+    return queue;
+  }
+
   function createMockItems({ count, pool, format, points, preferDescribe = false }) {
     if (!Array.isArray(pool) || pool.length === 0 || count <= 0) {
       return [];
@@ -1944,6 +2169,7 @@
     renderTopics();
     renderTodayPlan();
     renderDrill();
+    renderMiniTest();
     renderQuestionEditor();
     renderMockExam();
     renderGlossary();
@@ -1956,19 +2182,28 @@
   function renderDashboard() {
     byId("examDateInput").value = state.settings.examDate;
 
-    const daysLeft = daysUntil(state.settings.examDate);
-    const phase = phaseByDays(daysLeft);
+    const examDaysLeft = daysUntil(state.settings.examDate);
+    const completeDaysLeft = getDaysUntilCompleteDate();
+    const completeDate = getCompleteDate();
+    const phase = phaseByDays(completeDaysLeft);
     const dailyTarget = getDailyTargetCount();
 
-    byId("daysLeft").textContent = daysLeft >= 0 ? `${daysLeft}日` : "終了";
+    byId("daysLeft").textContent = completeDaysLeft >= 0 ? `${completeDaysLeft}日` : "期限超過";
     byId("phaseLabel").textContent = phase.label;
     byId("dailyTarget").textContent = `${dailyTarget}問`;
 
     const likely = toISODate(getLikelyExamDate(todayLocal()));
-    let note = "公式試験概要の『毎年11月第2日曜』を基準に逆算します。";
+    let note = `本番${COMPLETE_BUFFER_DAYS}日前の ${toISODate(completeDate)} を仕上げ期限として逆算します。`;
 
     if (state.settings.examDate === likely) {
       note += ` 現在の設定は ${state.settings.examDate}（暫定候補）です。`;
+    }
+
+    if (examDaysLeft >= 0) {
+      note += ` 本番まで ${examDaysLeft}日。`;
+    }
+    if (completeDaysLeft < 0 && examDaysLeft >= 0) {
+      note += " 仕上げ期限を過ぎています。今日の問題数を増やしてください。";
     }
 
     const byNeed = getNeedBasedQuestions();
@@ -2212,6 +2447,45 @@
     byId("questionEditorMessage").textContent = state.questionEditor.message || "";
   }
 
+  function renderMiniTest() {
+    const idle = byId("miniTestIdle");
+    const active = byId("miniTestActive");
+
+    if (!state.miniTest.active) {
+      idle.classList.remove("hidden");
+      active.classList.add("hidden");
+      byId("miniTestChoicesWrap").innerHTML = "";
+      byId("miniTestQuestionPrompt").textContent = "";
+      byId("miniTestMessage").textContent = state.miniTest.message || "";
+      return;
+    }
+
+    idle.classList.add("hidden");
+    active.classList.remove("hidden");
+
+    const item = state.miniTest.queue[state.miniTest.pointer];
+    if (!item) {
+      finishMiniTest("小テストを終了しました。");
+      return;
+    }
+
+    const topic = state.topics.find((entry) => entry.id === item.topicId);
+    if (!topic) {
+      state.miniTest.pointer += 1;
+      saveState();
+      renderMiniTest();
+      return;
+    }
+
+    const detail = getQuestionDetail(item.topicId, item.questionNo, false);
+
+    byId("miniTestProgress").textContent = `進捗: ${state.miniTest.pointer + 1}/${state.miniTest.queue.length}問`;
+    byId("miniTestQuestionHead").textContent = `小テスト / ${topic.name} Q${item.questionNo}`;
+    byId("miniTestQuestionPrompt").textContent = buildExamStylePrompt(topic, detail, "小テスト");
+    byId("miniTestChoicesWrap").innerHTML = buildExamChoicesHtml(detail.choices);
+    byId("miniTestMessage").textContent = state.miniTest.message || "3択を選択してください。";
+  }
+
   function renderMockExam() {
     byId("mockExamSpec").textContent = OFFICIAL_SPEC_TEXT;
 
@@ -2222,6 +2496,7 @@
       idle.classList.remove("hidden");
       active.classList.add("hidden");
       byId("mockChoicesWrap").innerHTML = "";
+      byId("mockQuestionExplain").textContent = "";
       byId("mockMessage").textContent = state.mock.message || "";
       return;
     }
@@ -2250,14 +2525,9 @@
     const detail = getQuestionDetail(item.topicId, item.questionNo, false);
 
     byId("mockQuestionHead").textContent = `${item.format} / ${topic.name} Q${item.questionNo} / ${item.points}点`;
-    byId("mockQuestionPrompt").textContent = detail.prompt;
-    byId("mockChoicesWrap").innerHTML = detail.choices
-      .map((choice, index) => {
-        const label = `${index + 1}. ${choice}`;
-        return `<button type="button" class="choiceBtn" data-choice-index="${index}">${escapeHtml(label)}</button>`;
-      })
-      .join("");
-    byId("mockQuestionExplain").textContent = "3択を選択してください。";
+    byId("mockQuestionPrompt").textContent = buildExamStylePrompt(topic, detail, "模試");
+    byId("mockChoicesWrap").innerHTML = buildExamChoicesHtml(detail.choices);
+    byId("mockQuestionExplain").textContent = "本番風の書き方で出題中。3択を選択してください。";
     byId("mockMessage").textContent = state.mock.message || "";
   }
 
@@ -2498,6 +2768,40 @@
     return choices.every((choice) => String(choice || "").trim().length > 0);
   }
 
+  function buildExamStylePrompt(topic, detail, modeLabel) {
+    const trend = detail.trendTag || PAST5_TREND_BY_TOPIC[topic.id] || "";
+    const head = `${modeLabel}問題: ${topic.name}に関する次の記述のうち、最も妥当なものはどれか。`;
+    if (trend) {
+      return `${head}\n（論点: ${trend}）`;
+    }
+    return head;
+  }
+
+  function buildExamChoicesHtml(choices) {
+    const labels = ["ア", "イ", "ウ"];
+    return choices
+      .map((choice, index) => {
+        const text = normalizeExamStyleChoice(choice);
+        const label = `${labels[index]}. ${text}`;
+        return `<button type="button" class="choiceBtn" data-choice-index="${index}">${escapeHtml(label)}</button>`;
+      })
+      .join("");
+  }
+
+  function normalizeExamStyleChoice(choice) {
+    const text = String(choice || "").trim();
+    if (!text) {
+      return "-";
+    }
+    if (/[。．]$/.test(text)) {
+      return text;
+    }
+    if (text.length <= 14) {
+      return `${text}である。`;
+    }
+    return `${text}。`;
+  }
+
   function defaultTermsForTopic(topic) {
     if (topic.category === "major") {
       return ["要件", "効果", "取消し", "無効"];
@@ -2542,33 +2846,57 @@
     return `${String(min).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   }
 
+  function getCompleteDate() {
+    const examDate = parseISODate(state.settings.examDate);
+    return addDays(examDate, -COMPLETE_BUFFER_DAYS);
+  }
+
+  function getDaysUntilCompleteDate() {
+    const completeDate = getCompleteDate();
+    const today = todayLocal();
+    return Math.ceil((completeDate.getTime() - today.getTime()) / 86400000);
+  }
+
   function buildCurriculumItems() {
     const examDate = parseISODate(state.settings.examDate);
     const today = todayLocal();
+    const completeDate = getCompleteDate();
     const daysLeft = daysUntil(state.settings.examDate);
+    const completeDaysLeft = getDaysUntilCompleteDate();
 
     if (daysLeft < 0) {
       return ["設定された本番日は過去日です。日付を更新してください。"];
     }
 
-    const phase1End = addDays(examDate, -120);
-    const phase2End = addDays(examDate, -45);
+    const phase1End = addDays(completeDate, -90);
+    const phase2End = addDays(completeDate, -30);
 
     const items = [];
 
-    if (today <= phase1End) {
+    if (completeDaysLeft < 0) {
+      items.push(`仕上げ期限(${formatDate(completeDate)})を過ぎています。弱点分野を最優先で圧縮復習。`);
+    } else if (today <= phase1End) {
       items.push(`${formatDateRange(today, phase1End)}: 基礎固め (行政法/民法優先 + 主要科目1周目)`);
       items.push(`${formatDateRange(addDays(phase1End, 1), phase2End)}: 周回強化 (過去問反復 + 六法/テキスト回帰)`);
     } else if (today <= phase2End) {
       items.push(`${formatDateRange(today, phase2End)}: 周回強化 (過去問反復 + 記述対策)`);
     }
 
-    items.push(`${formatDateRange(addDays(phase2End, 1), addDays(examDate, -1))}: 直前総仕上げ (横断復習 + 時間配分訓練)`);
+    if (today <= completeDate) {
+      items.push(`${formatDateRange(addDays(phase2End, 1), completeDate)}: 仕上げ期間 (模試完了・弱点潰し・到達確認)`);
+    }
 
-    const mockOffsets = [60, 45, 30, 14, 7];
+    const finalWeekStart = addDays(completeDate, 1);
+    const dayBeforeExam = addDays(examDate, -1);
+    if (finalWeekStart <= dayBeforeExam && today <= dayBeforeExam) {
+      const start = today > finalWeekStart ? today : finalWeekStart;
+      items.push(`${formatDateRange(start, dayBeforeExam)}: 最終調整 (軽い総復習・体調管理・時間配分確認)`);
+    }
+
+    const mockOffsets = [45, 30, 21, 14, 10, 7];
     for (const offset of mockOffsets) {
       const mockDate = addDays(examDate, -offset);
-      if (mockDate >= today) {
+      if (mockDate >= today && mockDate <= completeDate) {
         items.push(`${formatDate(mockDate)}: 模試実施(D-${offset}) + 当日中に復習`);
       }
     }
@@ -2585,16 +2913,18 @@
     }
 
     const targetCount = getDailyTargetCount();
-    const daysLeft = daysUntil(state.settings.examDate);
+    const examDaysLeft = daysUntil(state.settings.examDate);
+    const completeDaysLeft = getDaysUntilCompleteDate();
+    const planningDaysLeft = Math.max(0, completeDaysLeft);
 
-    if (daysLeft < 0) {
+    if (examDaysLeft < 0) {
       state.todayPlan = { date: today, tasks: [] };
       saveState();
       return;
     }
 
     const activeTopics = state.topics
-      .map((topic) => ({ topic, score: topicScore(topic, daysLeft) }))
+      .map((topic) => ({ topic, score: topicScore(topic, planningDaysLeft) }))
       .filter((item) => item.score > 0)
       .sort((a, b) => b.score - a.score);
 
@@ -2604,7 +2934,7 @@
       return;
     }
 
-    const phase = phaseByDays(daysLeft);
+    const phase = phaseByDays(planningDaysLeft);
     const focusLimit = phase.key === "final" ? 4 : 3;
     const focus = activeTopics.slice(0, Math.min(focusLimit, activeTopics.length));
     const scoreTotal = focus.reduce((sum, item) => sum + item.score, 0);
@@ -2702,7 +3032,7 @@
   }
 
   function getNeedBasedQuestions() {
-    const daysLeft = Math.max(1, daysUntil(state.settings.examDate));
+    const daysLeft = Math.max(1, getDaysUntilCompleteDate());
     let remaining = 0;
 
     for (const topic of state.topics) {
@@ -2719,13 +3049,13 @@
   }
 
   function phaseByDays(daysLeft) {
-    if (daysLeft > 150) {
+    if (daysLeft > 120) {
       return { key: "base", label: "基礎固め" };
     }
-    if (daysLeft > 45) {
+    if (daysLeft > 30) {
       return { key: "loop", label: "周回強化" };
     }
-    return { key: "final", label: "直前総仕上げ" };
+    return { key: "final", label: "仕上げ期（D-7まで）" };
   }
 
   function getLikelyExamDate(baseDate) {

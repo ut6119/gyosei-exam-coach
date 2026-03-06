@@ -13,6 +13,25 @@
     </header>
 
     <main class="grid">
+      <section class="card" id="homeCard">
+        <h2>0. ホーム</h2>
+        <p class="note">番号をタップすると、その画面に移動します。</p>
+        <div id="homeNavGrid" class="homeNavGrid">
+          <button type="button" class="homeNavBtn" data-target="dashboardCard"><span class="homeNum">1</span><span>本番カウント</span></button>
+          <button type="button" class="homeNavBtn" data-target="settingsCard"><span class="homeNum">2</span><span>学習設定</span></button>
+          <button type="button" class="homeNavBtn" data-target="topicsCard"><span class="homeNum">3</span><span>問題セット</span></button>
+          <button type="button" class="homeNavBtn" data-target="todayPlanCard"><span class="homeNum">4</span><span>今日のプラン</span></button>
+          <button type="button" class="homeNavBtn" data-target="drillCard"><span class="homeNum">5</span><span>反復ドリル</span></button>
+          <button type="button" class="homeNavBtn" data-target="miniTestCard"><span class="homeNum">6</span><span>小テスト</span></button>
+          <button type="button" class="homeNavBtn" data-target="questionEditorCard"><span class="homeNum">7</span><span>問題編集</span></button>
+          <button type="button" class="homeNavBtn" data-target="mockExamCard"><span class="homeNum">8</span><span>模試</span></button>
+          <button type="button" class="homeNavBtn" data-target="glossaryCard"><span class="homeNum">9</span><span>用語集</span></button>
+          <button type="button" class="homeNavBtn" data-target="pitfallsCard"><span class="homeNum">10</span><span>ミス傾向</span></button>
+          <button type="button" class="homeNavBtn" data-target="curriculumCard"><span class="homeNum">11</span><span>カリキュラム</span></button>
+          <button type="button" class="homeNavBtn" data-target="researchCard"><span class="homeNum">12</span><span>出典</span></button>
+        </div>
+      </section>
+
       <section class="card" id="dashboardCard">
         <h2>1. 本番カウントダウン</h2>
         <div class="row">
@@ -22,7 +41,7 @@
         </div>
         <div class="kpiWrap">
           <div class="kpi">
-            <span class="kpiLabel">残り日数</span>
+            <span class="kpiLabel">仕上げ期限まで</span>
             <span class="kpiValue" id="daysLeft">-</span>
           </div>
           <div class="kpi">
@@ -39,6 +58,7 @@
 
       <section class="card" id="settingsCard">
         <h2>2. 学習設定</h2>
+        <p class="note">本番の7日前までに仕上げる前提で、毎日の問題数を自動計算します。</p>
         <div class="row">
           <label for="dailyMinutesInput">1日の学習時間(分)</label>
           <input id="dailyMinutesInput" type="number" min="10" max="600" step="5" />
@@ -119,8 +139,25 @@
         <p id="drillMessage" class="note"></p>
       </section>
 
+      <section class="card" id="miniTestCard">
+        <h2>6. 小テスト（本番風3択）</h2>
+        <p class="note">10問の短時間テスト。本番風の文体で出題します。</p>
+        <div class="row">
+          <button id="startMiniTestBtn" type="button">10問小テスト開始</button>
+          <button id="finishMiniTestBtn" type="button">小テスト終了</button>
+        </div>
+        <div id="miniTestIdle">開始すると10問の小テストが表示されます。</div>
+        <div id="miniTestActive" class="hidden">
+          <p id="miniTestProgress"></p>
+          <p id="miniTestQuestionHead" class="questionHead"></p>
+          <p id="miniTestQuestionPrompt" class="questionBox"></p>
+          <div id="miniTestChoicesWrap" class="choiceList"></div>
+        </div>
+        <p id="miniTestMessage" class="note"></p>
+      </section>
+
       <section class="card" id="questionEditorCard">
-        <h2>6. 問題と解説の登録</h2>
+        <h2>7. 問題と解説の登録</h2>
         <p class="note">各問いに「問題文・正答根拠・解説・間違えやすい点・関連用語」を保存できます。</p>
         <div class="row">
           <label for="questionTopicSelect">分野</label>
@@ -174,7 +211,7 @@
       </section>
 
       <section class="card" id="mockExamCard">
-        <h2>7. 本番想定 模試モード</h2>
+        <h2>8. 本番想定 模試モード</h2>
         <p class="note" id="mockExamSpec"></p>
         <div class="row">
           <button id="startMockBtn" type="button">180分模試を開始</button>
@@ -196,7 +233,7 @@
       </section>
 
       <section class="card" id="glossaryCard">
-        <h2>8. 専門用語集</h2>
+        <h2>9. 専門用語集</h2>
         <div class="row">
           <input id="glossarySearchInput" type="text" placeholder="用語検索" />
         </div>
@@ -210,17 +247,17 @@
       </section>
 
       <section class="card" id="pitfallsCard">
-        <h2>9. 間違えやすいポイント</h2>
+        <h2>10. 間違えやすいポイント</h2>
         <ul id="pitfallList" class="checkList"></ul>
       </section>
 
       <section class="card" id="curriculumCard">
-        <h2>10. 本番逆算カリキュラム</h2>
+        <h2>11. 本番逆算カリキュラム</h2>
         <ul id="curriculumList" class="checkList"></ul>
       </section>
 
       <section class="card" id="researchCard">
-        <h2>11. 調査ベース学習原則</h2>
+        <h2>12. 調査ベース学習原則</h2>
         <ul id="researchList" class="linkList"></ul>
         <p class="note">出典更新日: <span id="researchUpdatedAt"></span></p>
       </section>
