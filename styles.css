@@ -1,0 +1,225 @@
+:root {
+  --bg: #f6f7fb;
+  --panel: #ffffff;
+  --text: #1f2a3a;
+  --muted: #566173;
+  --line: #dce1ea;
+  --brand: #1f5fbf;
+  --ok: #0d7a3c;
+  --ng: #b33a2a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: radial-gradient(circle at top left, #e9f3ff, var(--bg) 60%);
+  color: var(--text);
+  font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+  line-height: 1.45;
+}
+
+.hero {
+  padding: 28px 16px 14px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.hero h1 {
+  margin: 0 0 6px;
+  font-size: 1.7rem;
+}
+
+.hero p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.grid {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 12px 16px 30px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: 0 6px 16px rgba(31, 42, 58, 0.05);
+}
+
+h2 {
+  margin-top: 0;
+  font-size: 1.05rem;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.row.compact input {
+  flex: 1;
+  min-width: 120px;
+}
+
+.row.stacked {
+  display: block;
+}
+
+.row.stacked label {
+  display: block;
+  margin-bottom: 4px;
+}
+
+label {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+input,
+select,
+textarea,
+button {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 0.95rem;
+}
+
+input {
+  background: #fff;
+}
+
+select,
+textarea {
+  background: #fff;
+}
+
+textarea {
+  width: 100%;
+  resize: vertical;
+}
+
+button {
+  background: #f8fafc;
+  color: var(--text);
+  cursor: pointer;
+}
+
+button:hover {
+  border-color: var(--brand);
+}
+
+button.ok {
+  background: #e8f7ef;
+  border-color: #b9e8cd;
+  color: var(--ok);
+}
+
+button.ng {
+  background: #fdecea;
+  border-color: #f2c5bf;
+  color: var(--ng);
+}
+
+.kpiWrap {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.kpi {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px;
+  background: #fbfdff;
+}
+
+.kpiLabel {
+  display: block;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.kpiValue {
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.note {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.checkList,
+.linkList {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.checkList li,
+.linkList li {
+  margin: 4px 0;
+}
+
+.linkList a {
+  color: var(--brand);
+}
+
+.hidden {
+  display: none;
+}
+
+.questionHead {
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.questionBox {
+  margin: 0 0 8px;
+  border: 1px solid var(--line);
+  background: #fcfdff;
+  border-radius: 8px;
+  padding: 8px;
+  white-space: pre-wrap;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.table th,
+.table td {
+  border-bottom: 1px solid var(--line);
+  padding: 6px 4px;
+  text-align: left;
+}
+
+.table input[type="number"] {
+  width: 92px;
+}
+
+footer {
+  text-align: center;
+  color: var(--muted);
+  padding-bottom: 18px;
+}
+
+@media (max-width: 720px) {
+  .kpiWrap {
+    grid-template-columns: 1fr;
+  }
+}
