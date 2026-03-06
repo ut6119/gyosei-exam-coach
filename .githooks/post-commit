@@ -12,7 +12,13 @@ if [ "$branch" != "main" ]; then
 fi
 
 # Deploy the current workspace to Netlify production.
-# Logs are captured for later inspection.
-if ! npx --yes netlify-cli deploy --prod --dir . >/tmp/gyosei_netlify_post_commit.log 2>&1; then
+# Prefer local binary to avoid fetching from npm on every commit.
+if [ -x "./node_modules/.bin/netlify" ]; then
+  deploy_cmd=(./node_modules/.bin/netlify deploy --prod --dir .)
+else
+  deploy_cmd=(npx --yes netlify-cli deploy --prod --dir .)
+fi
+
+if ! "${deploy_cmd[@]}" >/tmp/gyosei_netlify_post_commit.log 2>&1; then
   echo "[post-commit] Netlify deploy failed: /tmp/gyosei_netlify_post_commit.log" >&2
 fi
