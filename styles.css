@@ -37,6 +37,37 @@ body {
   color: var(--muted);
 }
 
+.focusTabBar {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 16px 8px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: linear-gradient(180deg, rgba(246, 247, 251, 0.97), rgba(246, 247, 251, 0.88));
+  backdrop-filter: blur(2px);
+}
+
+.focusTabBtn {
+  border-radius: 999px;
+  padding: 8px 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  border-color: #bfd0ea;
+  background: #ffffff;
+  color: #26456f;
+  white-space: nowrap;
+}
+
+.focusTabBtn.active {
+  border-color: #1f5fbf;
+  background: #1f5fbf;
+  color: #ffffff;
+}
+
 .grid {
   max-width: 1100px;
   margin: 0 auto;
@@ -52,6 +83,27 @@ body {
   border-radius: 12px;
   padding: 14px;
   box-shadow: 0 6px 16px rgba(31, 42, 58, 0.05);
+}
+
+.card.isFocused {
+  order: -20;
+  border-color: #bfd0ea;
+}
+
+.card.isCompact {
+  padding: 8px 10px;
+  background: #fbfcff;
+  box-shadow: none;
+}
+
+.card.isCompact > :not(h2) {
+  display: none !important;
+}
+
+.card.isCompact h2 {
+  margin: 0;
+  font-size: 0.84rem;
+  color: var(--muted);
 }
 
 #homeCard {
@@ -694,6 +746,17 @@ footer {
 }
 
 @media (max-width: 720px) {
+  .focusTabBar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    padding: 2px 12px 8px;
+  }
+
+  .focusTabBtn {
+    font-size: 0.74rem;
+    padding: 8px 8px;
+  }
+
   .grid {
     grid-template-columns: 1fr;
   }

@@ -5,6 +5,20 @@
   const RESEARCH_UPDATED_AT = "2026-03-06";
   const COMPLETE_BUFFER_DAYS = 7;
   const SECTION_CLEAR_TARGET = 5;
+  const FOCUS_TABS = ["home", "today", "primer", "drill"];
+  const FOCUS_TAB_TARGETS = {
+    home: ["homeCard", "dashboardCard"],
+    today: ["todayPlanCard"],
+    primer: ["primerBookCard"],
+    drill: ["drillCard"]
+  };
+  const FOCUS_TAB_BY_CARD = {
+    homeCard: "home",
+    dashboardCard: "home",
+    todayPlanCard: "today",
+    primerBookCard: "primer",
+    drillCard: "drill"
+  };
 
   const OFFICIAL_SPEC_TEXT = "公式情報ベース: 試験時間180分(13:00-16:00) / 出題60問(法令等46問+基礎知識14問) / 合格基準: 法令等122点以上・基礎知識24点以上・総得点180点以上";
 
@@ -902,6 +916,9 @@
         topicId: topics[0].id,
         questionNo: 1,
         message: ""
+      },
+      ui: {
+        activeTab: "home"
       }
     };
   }
@@ -950,6 +967,7 @@
     state.trainingCycle = state.trainingCycle && typeof state.trainingCycle === "object"
       ? state.trainingCycle
       : defaultTrainingCycle();
+    state.ui = state.ui && typeof state.ui === "object" ? state.ui : { activeTab: "home" };
     state.primerView = state.primerView && typeof state.primerView === "object"
       ? state.primerView
       : fresh.primerView;
@@ -1053,6 +1071,7 @@
       Math.round(Number(state.trainingCycle.sectionClearsSinceMiniTest) || 0)
     );
     state.trainingCycle.pendingMiniTest = Boolean(state.trainingCycle.pendingMiniTest);
+    state.ui.activeTab = normalizeFocusTab(state.ui.activeTab);
 
     for (const topic of state.topics) {
       if (!state.progress[topic.id]) {
@@ -1222,6 +1241,7 @@
   }
 
   function bindEvents() {
+    byId("focusTabBar").addEventListener("click", onFocusTabClick);
     byId("homeNavGrid").addEventListener("click", onHomeNavClick);
     byId("saveExamDateBtn").addEventListener("click", onSaveExamDate);
     byId("saveSettingsBtn").addEventListener("click", onSaveSettings);
@@ -1281,7 +1301,82 @@
     if (!card) {
       return;
     }
+    const tabKey = FOCUS_TAB_BY_CARD[cardId];
+    if (tabKey) {
+      setFocusTab(tabKey, { save: true, scroll: false });
+    }
     card.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function onFocusTabClick(event) {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+    const button = target.closest("button[data-tab]");
+    if (!(button instanceof HTMLButtonElement)) {
+      return;
+    }
+    const tabKey = normalizeFocusTab(button.dataset.tab);
+    setFocusTab(tabKey, { save: true, scroll: true });
+  }
+
+  function normalizeFocusTab(tabKey) {
+    const picked = String(tabKey || "home");
+    if (FOCUS_TABS.includes(picked)) {
+      return picked;
+    }
+    return "home";
+  }
+
+  function getFocusTabCards(tabKey) {
+    const safeTab = normalizeFocusTab(tabKey);
+    const targets = FOCUS_TAB_TARGETS[safeTab];
+    return Array.isArray(targets) && targets.length > 0 ? targets : FOCUS_TAB_TARGETS.home;
+  }
+
+  function setFocusTab(tabKey, options = {}) {
+    const safeTab = normalizeFocusTab(tabKey);
+    state.ui.activeTab = safeTab;
+    if (options.save !== false) {
+      saveState();
+    }
+    applyFocusTabLayout(Boolean(options.scroll));
+  }
+
+  function applyFocusTabLayout(shouldScroll) {
+    const safeTab = normalizeFocusTab(state.ui.activeTab);
+    const expandedIds = new Set(getFocusTabCards(safeTab));
+    const cards = document.querySelectorAll(".grid .card");
+    for (const card of cards) {
+      if (!(card instanceof HTMLElement)) {
+        continue;
+      }
+      const isFocused = expandedIds.has(card.id);
+      card.classList.toggle("isFocused", isFocused);
+      card.classList.toggle("isCompact", !isFocused);
+    }
+
+    const tabButtons = document.querySelectorAll(".focusTabBtn");
+    for (const button of tabButtons) {
+      if (!(button instanceof HTMLButtonElement)) {
+        continue;
+      }
+      const isActive = normalizeFocusTab(button.dataset.tab) === safeTab;
+      button.classList.toggle("active", isActive);
+      button.setAttribute("aria-selected", isActive ? "true" : "false");
+    }
+
+    document.body.dataset.focusTab = safeTab;
+
+    if (!shouldScroll) {
+      return;
+    }
+    const firstCardId = getFocusTabCards(safeTab)[0];
+    const targetCard = firstCardId ? document.getElementById(firstCardId) : null;
+    if (targetCard) {
+      targetCard.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   }
 
   function onSaveExamDate() {
@@ -2482,6 +2577,7 @@
     renderPitfalls();
     renderCurriculum();
     renderResearch();
+    applyFocusTabLayout(false);
     ensureMockTimer();
   }
 
@@ -2784,6 +2880,10 @@
     }
   }
 
+  function getTodayPlannedCount() {
+    return state.todayPlan.tasks.reduce((sum, task) => sum + Math.max(0, Number(task.count) || 0), 0);
+  }
+
   function renderPrimerBook() {
     const topicSelect = byId("primerTopicSelect");
     const sectionSelect = byId("primerSectionSelect");
@@ -2839,18 +2939,16 @@
     const resultInline = byId("drillResultInline");
     const resultBadge = byId("drillResultBadge");
     const explanationAccordion = byId("drillExplanationAccordion");
-    const today = todayISO();
     const doneCount = state.drill.queue.length > 0
       ? Math.min(state.drill.pointer, state.drill.queue.length)
       : 0;
+    const todayPlannedCount = getTodayPlannedCount();
     byId("drillRuleTop").textContent = `ルール: 各セクションを${state.settings.targetPerfectRounds}回連続満点でクリア。不正解でそのセクション先頭へ戻る。`;
 
     if (state.drill.active) {
       setGauge("drillGaugeFill", "drillGaugeLabel", doneCount, state.drill.queue.length, "0%");
-    } else if (state.drill.startedAt === today && state.drill.queue.length > 0) {
-      setGauge("drillGaugeFill", "drillGaugeLabel", doneCount, state.drill.queue.length, "0%");
     } else {
-      setGauge("drillGaugeFill", "drillGaugeLabel", 0, 0, "未開始");
+      setGauge("drillGaugeFill", "drillGaugeLabel", 0, todayPlannedCount, "未開始");
     }
 
     if (!state.drill.active) {
