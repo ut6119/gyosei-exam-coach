@@ -534,6 +534,16 @@ button.ng {
   line-height: 1.2;
 }
 
+.sectionFoldSummary.done {
+  background: #c8f0d3;
+  border-radius: 8px;
+  color: #134021;
+}
+
+.sectionFoldSummary.done .sectionFoldMeta {
+  color: #215430;
+}
+
 .sectionFoldMeta {
   font-size: 0.74rem;
   color: var(--muted);

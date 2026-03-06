@@ -976,6 +976,18 @@
     }
 
     const existingTopicIds = new Set(state.topics.map((topic) => topic.id));
+    state.todayPlan.tasks = state.todayPlan.tasks
+      .map((task) => {
+        const topicId = String((task && task.topicId) || "");
+        const count = Math.max(0, Math.round(Number(task && task.count) || 0));
+        const progress = state.progress[topicId] || defaultProgress();
+        const attemptBaseRaw = Number(task && task.attemptBase);
+        const attemptBase = Number.isFinite(attemptBaseRaw)
+          ? Math.max(0, Math.round(attemptBaseRaw))
+          : Math.max(0, progress.attempts - count);
+        return { topicId, count, attemptBase };
+      })
+      .filter((task) => task.topicId && task.count > 0 && existingTopicIds.has(task.topicId));
 
     if (!Array.isArray(state.drill.queue)) {
       state.drill.queue = [];
@@ -1610,10 +1622,34 @@
       generateTodayPlan(true);
     }
 
+    state.todayPlan.tasks = state.todayPlan.tasks.map((task) => {
+      const progress = state.progress[task.topicId] || defaultProgress();
+      const baseRaw = Number(task.attemptBase);
+      return {
+        topicId: task.topicId,
+        count: task.count,
+        attemptBase: Number.isFinite(baseRaw) ? Math.max(0, Math.round(baseRaw)) : progress.attempts
+      };
+    });
+
+    const queueSlots = state.todayPlan.tasks
+      .map((task) => ({
+        topicId: task.topicId,
+        left: Math.max(0, Math.round(Number(task.count) || 0))
+      }))
+      .filter((slot) => slot.left > 0);
+
     const queue = [];
-    for (const task of state.todayPlan.tasks) {
-      for (let i = 0; i < task.count; i += 1) {
-        queue.push(createDrillQueueEntry(task.topicId, 0));
+    let hasPending = true;
+    while (hasPending) {
+      hasPending = false;
+      for (const slot of queueSlots) {
+        if (slot.left <= 0) {
+          continue;
+        }
+        queue.push(createDrillQueueEntry(slot.topicId, 0));
+        slot.left -= 1;
+        hasPending = true;
       }
     }
 
@@ -1788,8 +1824,6 @@
     const progress = state.progress[topicId] || defaultProgress();
     const questionNo = current.questionNo;
     const currentSection = getCurrentSection(topic, questionNo);
-    const sectionLength = Math.max(1, currentSection.end - currentSection.start + 1);
-
     progress.attempts += 1;
     progress.lastStudied = todayISO();
 
@@ -1860,11 +1894,7 @@
 
       const heatKey = `${topicId}:${questionNo}`;
       state.pitfallHeatmap[heatKey] = (state.pitfallHeatmap[heatKey] || 0) + 1;
-
-      const restartBurst = Math.min(sectionLength, 6);
-      const penaltyQueue = Array.from({ length: restartBurst }, () => createDrillQueueEntry(topicId, 0));
-      state.drill.queue.splice(state.drill.pointer + 1, 0, ...penaltyQueue);
-      state.drill.message = `${topic.name} ${currentSection.name} で不正解。セクション先頭に戻して追加${restartBurst}問。`;
+      state.drill.message = `${topic.name} ${currentSection.name} で不正解。セクション先頭に戻ります。`;
     }
 
     state.progress[topicId] = normalizeProgress(topic, progress);
@@ -2614,6 +2644,7 @@
             const isCleared = section.index < topicClearedSections;
             const isCurrent = !progress.mastered && section.index === currentSection.index;
             const sectionOpen = topic.id === firstActiveTopicId && isCurrent ? "open" : "";
+            const summaryClass = `sectionFoldSummary${isCleared ? " done" : ""}`;
             const miniHint = state.trainingCycle.pendingMiniTest
               ? "先に小テスト"
               : isCleared
@@ -2637,7 +2668,7 @@
 
             return `
               <details class="sectionFold" ${sectionOpen}>
-                <summary class="sectionFoldSummary">
+                <summary class="${summaryClass}">
                   <span class="sectionFoldTitle">${isCleared ? "★" : "☆"} S${sectionNo} ${escapeHtml(section.name)}</span>
                   <span class="sectionFoldMeta">Q${section.start}-${section.end} / ${count}問 / ${miniHint}</span>
                 </summary>
@@ -2689,8 +2720,12 @@
 
     const plannedCount = state.todayPlan.tasks.reduce((sum, task) => sum + Math.max(0, Number(task.count) || 0), 0);
     let doneCount = 0;
-    if (state.drill.startedAt === today && state.drill.queue.length > 0) {
-      doneCount = Math.min(state.drill.pointer, state.drill.queue.length);
+    for (const task of state.todayPlan.tasks) {
+      const progress = state.progress[task.topicId] || defaultProgress();
+      const baseRaw = Number(task.attemptBase);
+      const attemptBase = Number.isFinite(baseRaw) ? Math.max(0, Math.round(baseRaw)) : progress.attempts;
+      const delta = Math.max(0, progress.attempts - attemptBase);
+      doneCount += Math.min(task.count, delta);
     }
 
     if (state.todayPlan.tasks.length === 0) {
@@ -2743,9 +2778,13 @@
         continue;
       }
       const progress = state.progress[topic.id] || defaultProgress();
+      const baseRaw = Number(task.attemptBase);
+      const attemptBase = Number.isFinite(baseRaw) ? Math.max(0, Math.round(baseRaw)) : progress.attempts;
+      const delta = Math.max(0, progress.attempts - attemptBase);
+      const taskDone = Math.min(task.count, delta);
       const section = getCurrentSection(topic, progress.nextQuestion);
       const li = document.createElement("li");
-      li.textContent = `${topic.name}: ${task.count}問 (現在 ${section.name} Q${section.start}-${section.end}, 周回 ${progress.perfectRounds}/${state.settings.targetPerfectRounds})`;
+      li.textContent = `${topic.name}: ${taskDone}/${task.count}問 (現在 ${section.name} Q${section.start}-${section.end}, 周回 ${progress.perfectRounds}/${state.settings.targetPerfectRounds})`;
       list.appendChild(li);
     }
   }
@@ -3605,7 +3644,8 @@
       const provisional = Math.floor((targetCount * item.score) / scoreTotal);
       return {
         topicId: item.topic.id,
-        count: Math.max(1, provisional)
+        count: Math.max(1, provisional),
+        attemptBase: (state.progress[item.topic.id] || defaultProgress()).attempts
       };
     });
 
