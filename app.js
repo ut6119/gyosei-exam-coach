@@ -3321,9 +3321,30 @@
       .replaceAll("\n", " ")
       .replace(/\s+/g, " ")
       .trim();
-    const correctChoice = detail.choices[detail.correctIndex] || "";
-    const promptPart = compactPrompt ? `${compactPrompt} ` : "";
-    return `${topic.name} ${section.name} Q${questionNo}: ${promptPart}正解は「${correctChoice}」である。`;
+    const correctChoice = String(detail.choices[detail.correctIndex] || "")
+      .replace(/[。．]$/u, "")
+      .trim();
+
+    let base = compactPrompt
+      .replace(/[？?]$/u, "")
+      .replace(/どれか$/u, "")
+      .replace(/どれ$/u, "")
+      .trim();
+
+    let statement = "";
+    if (!base) {
+      statement = `このとき、最も妥当なのは${correctChoice}である。`;
+    } else if (/のは$/u.test(base)) {
+      statement = `${base}${correctChoice}である。`;
+    } else if (/は$/u.test(base)) {
+      statement = `${base}${correctChoice}である。`;
+    } else if (/とき$/u.test(base)) {
+      statement = `${base}、最も妥当なのは${correctChoice}である。`;
+    } else {
+      statement = `${base}なとき、最も妥当なのは${correctChoice}である。`;
+    }
+
+    return `${topic.name} ${section.name} Q${questionNo}: ${statement}`;
   }
 
   function buildExamChoicesHtml(choices) {
