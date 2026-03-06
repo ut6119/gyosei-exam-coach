@@ -1,10 +1,13 @@
 :root {
-  --bg: #f6f7fb;
+  --bg: #eef3fb;
   --panel: #ffffff;
-  --text: #1f2a3a;
-  --muted: #566173;
-  --line: #dce1ea;
-  --brand: #1f5fbf;
+  --text: #1b2536;
+  --muted: #4f5f76;
+  --line: #cfdaea;
+  --brand: #1d62c4;
+  --brand-2: #0f8f9f;
+  --surface: #f8fbff;
+  --surface-2: #f3f8ff;
   --ok: #0d7a3c;
   --ng: #b33a2a;
 }
@@ -15,7 +18,10 @@
 
 body {
   margin: 0;
-  background: radial-gradient(circle at top left, #e9f3ff, var(--bg) 60%);
+  background:
+    radial-gradient(circle at 8% 0%, #dbe9ff 0%, transparent 38%),
+    radial-gradient(circle at 98% 0%, #d8f6ef 0%, transparent 34%),
+    linear-gradient(180deg, #f5f8ff 0%, var(--bg) 70%);
   color: var(--text);
   font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
   line-height: 1.45;
@@ -23,19 +29,23 @@ body {
 }
 
 .hero {
-  padding: 28px 16px 14px;
+  padding: 24px 16px 14px;
   max-width: 1100px;
   margin: 0 auto;
+  border-bottom: 1px solid #d5e1f2;
 }
 
 .hero h1 {
-  margin: 0 0 6px;
-  font-size: 1.7rem;
+  margin: 0 0 8px;
+  font-size: 1.82rem;
+  letter-spacing: 0.01em;
+  color: #123e76;
 }
 
 .hero p {
   margin: 0;
-  color: var(--muted);
+  color: #39567a;
+  font-size: 0.95rem;
 }
 
 .focusTabBar {
@@ -47,9 +57,10 @@ body {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0;
-  border-top: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.96);
-  backdrop-filter: blur(6px);
+  border-top: 1px solid #c7d8f0;
+  box-shadow: 0 -8px 20px rgba(20, 48, 89, 0.08);
+  background: rgba(252, 254, 255, 0.95);
+  backdrop-filter: blur(8px);
   padding-bottom: env(safe-area-inset-bottom);
 }
 
@@ -59,13 +70,13 @@ body {
   border-top: 0;
   border-right: 0;
   border-bottom: 0;
-  border-left: 1px solid #e1e6f0;
+  border-left: 1px solid #deebfb;
   min-height: 64px;
   padding: 6px 4px;
   font-size: 0.74rem;
   font-weight: 700;
-  background: transparent;
-  color: #26456f;
+  background: linear-gradient(180deg, #ffffff, #f5f9ff);
+  color: #20496f;
   white-space: normal;
   display: flex;
   flex-direction: column;
@@ -96,30 +107,36 @@ body {
 }
 
 .focusTabBtn.active {
-  background: #eaf1ff;
-  color: #114da8;
+  background: linear-gradient(180deg, #1d62c4, #1450aa);
+  color: #ffffff;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
 }
 
 .grid {
   max-width: 1100px;
   margin: 0 auto;
-  padding: 12px 16px 30px;
+  padding: 14px 16px 34px;
   display: grid;
   gap: 12px;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
 }
 
 .card {
+  --card-accent: #4e74ac;
+  --card-soft: #f9fbff;
   background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 12px;
+  background: linear-gradient(180deg, #ffffff, var(--card-soft));
+  border: 1px solid #d2deef;
+  border-top: 4px solid var(--card-accent);
+  border-radius: 14px;
   padding: 14px;
-  box-shadow: 0 6px 16px rgba(31, 42, 58, 0.05);
+  box-shadow: 0 10px 24px rgba(23, 47, 86, 0.07);
 }
 
 .card.isFocused {
   order: -20;
-  border-color: #bfd0ea;
+  border-color: #9eb7d8;
+  box-shadow: 0 14px 28px rgba(23, 47, 86, 0.11);
 }
 
 .card.tabHidden {
@@ -143,11 +160,62 @@ body {
 }
 
 #homeCard {
-  background: linear-gradient(160deg, #f7fbff 0%, #ffffff 55%);
+  --card-accent: #1d62c4;
+  --card-soft: #f4f9ff;
 }
 
-#homeCard { order: 0; }
-#dashboardCard { order: 1; }
+#dashboardCard {
+  --card-accent: #0f8f9f;
+  --card-soft: #f1fcfd;
+}
+
+#settingsCard {
+  --card-accent: #3e78a8;
+  --card-soft: #f5fafe;
+}
+
+#problemMenuCard,
+#topicsCard,
+#questionEditorCard {
+  --card-accent: #4f739d;
+  --card-soft: #f5f9fe;
+}
+
+#todayPlanCard {
+  --card-accent: #1c7393;
+  --card-soft: #f1fbff;
+}
+
+#primerBookCard {
+  --card-accent: #4469b8;
+  --card-soft: #f4f7ff;
+}
+
+#drillCard {
+  --card-accent: #0f7f59;
+  --card-soft: #f2fcf8;
+}
+
+#miniTestCard,
+#mockExamCard {
+  --card-accent: #5d6fab;
+  --card-soft: #f6f7ff;
+}
+
+#glossaryCard,
+#pitfallsCard {
+  --card-accent: #8a5e9e;
+  --card-soft: #f9f5fc;
+}
+
+#curriculumCard,
+#researchCard {
+  --card-accent: #7861a3;
+  --card-soft: #f8f6ff;
+}
+
+#homeCard { order: 1; }
+#dashboardCard { order: 0; }
 #settingsCard { order: 2; }
 #problemMenuCard { order: 3; }
 #todayPlanCard { order: 4; }
@@ -162,9 +230,50 @@ body {
 #topicsCard { order: 13; }
 #questionEditorCard { order: 14; }
 
+.card h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 0;
+  color: #1f3556;
+  font-size: 1.03rem;
+  letter-spacing: 0.01em;
+}
+
+.card h2::before {
+  content: "◧";
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  line-height: 1;
+  color: #ffffff;
+  background: var(--card-accent);
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.14);
+}
+
+#homeCard h2::before { content: "⌂"; }
+#dashboardCard h2::before { content: "⏱"; }
+#settingsCard h2::before { content: "⚙"; }
+#problemMenuCard h2::before { content: "☰"; }
+#todayPlanCard h2::before { content: "✓"; }
+#primerBookCard h2::before { content: "≣"; }
+#drillCard h2::before { content: "↻"; }
+#miniTestCard h2::before { content: "□"; }
+#mockExamCard h2::before { content: "▣"; }
+#glossaryCard h2::before { content: "〒"; }
+#pitfallsCard h2::before { content: "△"; }
+#curriculumCard h2::before { content: "◫"; }
+#researchCard h2::before { content: "◇"; }
+#topicsCard h2::before { content: "+"; }
+#questionEditorCard h2::before { content: "✎"; }
+
 .homeNavGrid {
   display: grid;
-  gap: 8px;
+  gap: 9px;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
 }
 
@@ -173,15 +282,18 @@ body {
   align-items: center;
   gap: 8px;
   text-align: left;
-  background: #ffffff;
+  border: 1px solid #cfe0f5;
+  background: linear-gradient(180deg, #ffffff, #f2f8ff);
+  box-shadow: 0 3px 8px rgba(26, 61, 110, 0.08);
 }
 
 .homeNum {
   min-width: 26px;
   height: 26px;
   border-radius: 999px;
-  border: 1px solid #b8cbe8;
+  border: 1px solid #93b0da;
   color: #0d4ca5;
+  background: #e8f1ff;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -227,19 +339,20 @@ input,
 select,
 textarea,
 button {
-  border: 1px solid var(--line);
+  border: 1px solid #c6d7ec;
   border-radius: 8px;
   padding: 8px 10px;
   font-size: 0.95rem;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease, color 160ms ease;
 }
 
 input {
-  background: #fff;
+  background: #fbfdff;
 }
 
 select,
 textarea {
-  background: #fff;
+  background: #fbfdff;
 }
 
 textarea {
@@ -248,24 +361,35 @@ textarea {
 }
 
 button {
-  background: #f8fafc;
-  color: var(--text);
+  background: linear-gradient(180deg, #ffffff, #eef4fc);
+  color: #1f3556;
   cursor: pointer;
+  font-weight: 600;
 }
 
 button:hover {
-  border-color: var(--brand);
+  border-color: #99b8e3;
+  background: linear-gradient(180deg, #ffffff, #e7f0ff);
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  border-color: #4684d8;
+  box-shadow: 0 0 0 2px rgba(70, 132, 216, 0.2);
 }
 
 button.ok {
-  background: #e8f7ef;
-  border-color: #b9e8cd;
+  background: linear-gradient(180deg, #effdf5, #def7ea);
+  border-color: #9fdfbe;
   color: var(--ok);
 }
 
 button.ng {
-  background: #fdecea;
-  border-color: #f2c5bf;
+  background: linear-gradient(180deg, #fff3f1, #ffe5e0);
+  border-color: #efb9b2;
   color: var(--ng);
 }
 
@@ -276,35 +400,42 @@ button.ng {
 }
 
 .kpi {
-  border: 1px solid var(--line);
+  border: 1px solid #c8d9ef;
   border-radius: 10px;
   padding: 8px;
-  background: #fbfdff;
+  background: linear-gradient(160deg, #ffffff 0%, #f2f8ff 100%);
 }
 
 .kpiLabel {
   display: block;
-  color: var(--muted);
+  color: #426086;
   font-size: 0.8rem;
 }
 
 .kpiValue {
-  font-size: 1.35rem;
+  font-size: 1.38rem;
   font-weight: 700;
+  color: #1d4678;
 }
 
 .note {
   margin: 6px 0 0;
-  color: var(--muted);
-  font-size: 0.86rem;
+  color: #496180;
+  font-size: 0.84rem;
+  background: #f5f9ff;
+  border: 1px solid #d5e3f6;
+  border-left: 3px solid #9dbbe3;
+  border-radius: 8px;
+  padding: 4px 7px;
 }
 
 .summaryBox {
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: #fbfdff;
-  padding: 10px;
+  border: 1px solid #cadbef;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #fcfeff, #f1f8ff);
+  padding: 10px 11px;
   margin-bottom: 10px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 
 .progressWrap {
@@ -324,14 +455,14 @@ button.ng {
   width: 100%;
   height: 10px;
   border-radius: 999px;
-  background: #e4eaf4;
+  background: #dbe5f4;
   overflow: hidden;
 }
 
 .progressFill {
   height: 100%;
   width: 0;
-  background: linear-gradient(90deg, #1f5fbf 0%, #4f8be0 100%);
+  background: linear-gradient(90deg, #1d62c4 0%, #0f8f9f 100%);
   transition: width 220ms ease;
 }
 
@@ -361,13 +492,19 @@ button.ng {
 .questionHead {
   font-weight: 700;
   margin-bottom: 6px;
+  color: #1b4d7a;
+  background: #eaf4ff;
+  border: 1px solid #c6d9f4;
+  border-left: 4px solid #5f8ccc;
+  border-radius: 8px;
+  padding: 5px 8px;
 }
 
 .questionBox {
   margin: 0 0 8px;
-  border: 1px solid var(--line);
-  background: #fcfdff;
-  border-radius: 8px;
+  border: 1px solid #cddcf0;
+  background: #f8fbff;
+  border-radius: 10px;
   padding: 8px;
   white-space: pre-wrap;
 }
@@ -397,7 +534,8 @@ button.ng {
 }
 
 #drillExplanationAccordion {
-  background: #f8fbff;
+  background: linear-gradient(180deg, #fbfeff, #edf9ff);
+  border-color: #bee0eb;
   white-space: normal;
   padding: 6px 8px;
 }
@@ -411,6 +549,10 @@ button.ng {
 #drillExplanationAccordion .note {
   margin: 0 0 0.6em;
   line-height: 1.2;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: #325d84;
 }
 
 #drillExplanationAccordion .note:last-child {
@@ -429,8 +571,10 @@ button.ng {
   justify-content: space-between;
   gap: 10px;
   text-align: left;
-  background: #ffffff;
-  border: 1px solid var(--line);
+  background: linear-gradient(180deg, #ffffff, #f4faff);
+  border: 1px solid #c8daef;
+  border-left: 4px solid #a6c3e8;
+  border-radius: 10px;
 }
 
 .choiceText {
@@ -452,8 +596,8 @@ button.ng {
 }
 
 .choiceBtn:hover {
-  border-color: var(--brand);
-  background: #f1f7ff;
+  border-color: #8cb2e3;
+  background: linear-gradient(180deg, #ffffff, #eaf4ff);
 }
 
 .table {
@@ -464,9 +608,15 @@ button.ng {
 
 .table th,
 .table td {
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid #d7e3f2;
   padding: 6px 4px;
   text-align: left;
+}
+
+.table th {
+  color: #2c4f79;
+  background: #eef5ff;
+  font-weight: 700;
 }
 
 .table input[type="number"] {
@@ -527,6 +677,9 @@ button.ng {
   margin: 2px 0 0;
   font-size: 0.74rem;
   line-height: 1.15;
+  background: transparent;
+  border: 0;
+  padding: 0;
 }
 
 .sectionMenuList {
@@ -537,13 +690,13 @@ button.ng {
 .topicFold,
 .sectionGroupFold,
 .sectionFold {
-  border: 1px solid var(--line);
+  border: 1px solid #cfe0f4;
   border-radius: 10px;
   background: #fff;
 }
 
 .sectionGroupFold {
-  background: #f9fbff;
+  background: #f5f9ff;
 }
 
 .topicFoldSummary,
@@ -556,6 +709,18 @@ button.ng {
   flex-direction: column;
   gap: 4px;
   position: relative;
+}
+
+.topicFoldSummary {
+  background: linear-gradient(180deg, #f4f9ff, #ebf3ff);
+}
+
+.sectionGroupSummary {
+  background: linear-gradient(180deg, #f6faff, #eef4ff);
+}
+
+.sectionFoldSummary {
+  background: linear-gradient(180deg, #ffffff, #f6fbff);
 }
 
 .topicFoldSummary::-webkit-details-marker,
@@ -586,6 +751,7 @@ button.ng {
   font-weight: 700;
   font-size: 0.94rem;
   line-height: 1.2;
+  color: #2a4d7a;
 }
 
 .topicFoldMeta {
@@ -598,7 +764,7 @@ button.ng {
   width: 100%;
   height: 6px;
   border-radius: 999px;
-  background: #dde5f2;
+  background: #d6e2f2;
   overflow: hidden;
 }
 
@@ -606,7 +772,7 @@ button.ng {
   display: block;
   height: 100%;
   width: 0;
-  background: linear-gradient(90deg, #1f5fbf 0%, #4f8be0 100%);
+  background: linear-gradient(90deg, #1d62c4 0%, #0f8f9f 100%);
 }
 
 .topicFoldBody {
@@ -640,7 +806,7 @@ button.ng {
 }
 
 .sectionFoldSummary.done {
-  background: #c8f0d3;
+  background: linear-gradient(180deg, #d4f6df, #c3f0d2);
   border-radius: 8px;
   color: #134021;
 }
@@ -680,13 +846,15 @@ button.ng {
   border-radius: 999px;
   font-size: 0.78rem;
   line-height: 1;
-  background: #f4f7fb;
+  background: #eef5ff;
+  border: 1px solid #c8daef;
+  color: #2b507f;
 }
 
 .previewItem {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #ffffff;
+  border: 1px solid #c9dff0;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #ffffff, #f4fbff);
   padding: 8px;
   margin-bottom: 8px;
 }
@@ -700,6 +868,7 @@ button.ng {
   margin: 0;
   font-weight: 700;
   font-size: 0.9rem;
+  color: #24557c;
 }
 
 .compactList {
@@ -718,9 +887,9 @@ button.ng {
 }
 
 .primerQuestionFold {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #ffffff;
+  border: 1px solid #cde0f3;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #ffffff, #f6fbff);
 }
 
 .primerQuestionSummary {
@@ -730,6 +899,10 @@ button.ng {
   display: grid;
   gap: 3px;
   position: relative;
+}
+
+.primerQuestionSummary {
+  background: linear-gradient(180deg, #f6faff, #edf4ff);
 }
 
 .primerQuestionSummary::-webkit-details-marker {
@@ -751,7 +924,7 @@ button.ng {
 
 .primerQuestionNo {
   font-size: 0.74rem;
-  color: var(--brand);
+  color: #1b60be;
   font-weight: 700;
 }
 
@@ -769,6 +942,9 @@ button.ng {
   margin: 4px 0 0;
   font-size: 0.8rem;
   line-height: 1.23;
+  background: #f7fbff;
+  border-color: #d5e6f7;
+  border-left-color: #9ebddf;
 }
 
 .previewItem .primerQuestionList {
