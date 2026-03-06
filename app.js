@@ -20,34 +20,40 @@
       url: "https://www.gyosei-shiken.or.jp/pdf/basis.pdf"
     },
     {
-      title: "合格者実例: 問題演習後に六法/テキストへ回帰",
+      title: "公式過去問: 令和7年度",
       insight:
-        "周回だけでなく、誤答根拠を条文で確認する復習が定着に有効。",
-      url: "https://www.agaroot.jp/gyosei/column/r03-107/"
+        "過去5年分析の対象（語句出現と論点傾向の抽出元）。",
+      url: "https://www.gyosei-shiken.or.jp/pdf/r7_mondai.pdf"
     },
     {
-      title: "合格者実例: ジグザグ学習(インプット↔演習)",
+      title: "公式過去問: 令和6年度",
       insight:
-        "分野ごとに弱点を可視化し、短サイクルで修正する運用が有効。",
-      url: "https://www.agaroot.jp/gyosei/column/r06-02/"
+        "過去5年分析の対象（語句出現と論点傾向の抽出元）。",
+      url: "https://www.gyosei-shiken.or.jp/pdf/r6_mondai.pdf"
     },
     {
-      title: "出題比重(学習配分参考)",
+      title: "公式過去問: 令和5年度",
       insight:
-        "行政法・民法の比重が高く、日次計画の優先度を高める。",
-      url: "https://studying.jp/gyousei/about-more/jukenshikaku.html"
+        "過去5年分析の対象（語句出現と論点傾向の抽出元）。",
+      url: "https://www.gyosei-shiken.or.jp/pdf/r5_mondai.pdf"
     },
     {
-      title: "参考(フォーサイト型): 逆算カレンダー思想",
+      title: "公式過去問: 令和4年度",
       insight:
-        "試験日と進捗から日次タスクを自動生成する運用思想を採用。",
-      url: "https://www.foresight.jp/strengths/learning-system/"
+        "過去5年分析の対象（語句出現と論点傾向の抽出元）。",
+      url: "https://www.gyosei-shiken.or.jp/pdf/r4_mondai.pdf"
     },
     {
-      title: "YouTube活用例",
+      title: "公式過去問: 令和3年度",
       insight:
-        "動画は補助教材。軸は過去問と誤答解説の反復に置く。",
-      url: "https://ryotti-blog.com/gyosei-youtube/"
+        "過去5年分析の対象（語句出現と論点傾向の抽出元）。",
+      url: "https://www.gyosei-shiken.or.jp/pdf/r3_mondai.pdf"
+    },
+    {
+      title: "分析方針",
+      insight:
+        "令和3〜7年度の公式過去問から頻出語を抽出し、行政法・民法・憲法等の反復テーマを3択化。",
+      url: "https://www.gyosei-shiken.or.jp/doc/abstract/abstract.html"
     }
   ];
 
@@ -225,6 +231,534 @@
     }
   };
 
+  const PAST5_TREND_BY_TOPIC = {
+    admin: "過去5年頻出: 行政手続法 / 行政不服審査法 / 国家賠償法",
+    civil: "過去5年頻出: 民法総則 / 契約 / 保証 / 取消し・無効",
+    const_basic: "過去5年頻出: 憲法判例 / 人権 / 三権分立",
+    commercial: "過去5年頻出: 会社機関 / 株主総会 / 取締役",
+    general: "過去5年頻出: 個人情報 / 文章理解 / 情報分野",
+    describe: "過去5年頻出: 要件→当てはめ→結論の型"
+  };
+
+  const PAST5_CHOICE_BANK = {
+    admin: [
+      {
+        prompt: "【3択】申請を出したのに、役所が長く返事をしない状態はどれ？",
+        choices: [
+          "不作為",
+          "却下処分",
+          "行政指導"
+        ],
+        correctIndex: 0,
+        answer: "申請に対して相当期間内に処分しないのは不作為。",
+        explanation: "返事をしないこと自体が問題になる場面があります。まずは「返事なし=不作為」と覚えると整理しやすいです。",
+        pitfall: "却下（はっきり断る）と不作為（返事しない）を混同しない。",
+        terms: ["不作為", "申請", "行政庁"],
+        trendTag: "過去5年頻出: 行政手続・不服申立て"
+      },
+      {
+        prompt: "【3択】処分に納得できないとき、まず行政の中で見直しを求める手続は？",
+        choices: [
+          "審査請求",
+          "民事訴訟",
+          "住民投票"
+        ],
+        correctIndex: 0,
+        answer: "行政内部の見直し手続は審査請求。",
+        explanation: "いきなり裁判ではなく、先に不服申立てで解決できるケースがあります。",
+        pitfall: "審査請求と裁判の順番・役割を混同しない。",
+        terms: ["審査請求", "不服申立て", "処分"],
+        trendTag: "過去5年頻出: 行政不服審査法"
+      },
+      {
+        prompt: "【3択】公務員の違法行為で損害を受けた人が、国や自治体にお金を請求する制度は？",
+        choices: [
+          "国家賠償",
+          "行政指導",
+          "条例制定"
+        ],
+        correctIndex: 0,
+        answer: "国や自治体への損害賠償請求は国家賠償。",
+        explanation: "公務員の違法な公権力行使で損害が出たときの基本ルールです。",
+        pitfall: "民間会社への請求と国家賠償を混同しない。",
+        terms: ["国家賠償", "違法", "損害"],
+        trendTag: "過去5年頻出: 国家賠償法"
+      },
+      {
+        prompt: "【3択】違法な行政処分を消してほしいと裁判所に求める訴えは？",
+        choices: [
+          "取消訴訟",
+          "給付訴訟",
+          "告発"
+        ],
+        correctIndex: 0,
+        answer: "処分の取り消しを求めるのは取消訴訟。",
+        explanation: "処分の効力を争う代表的な訴訟です。",
+        pitfall: "『取り消したい』なら取消訴訟、と目的で覚える。",
+        terms: ["取消訴訟", "処分", "行政事件訴訟"],
+        trendTag: "過去5年頻出: 行政事件訴訟法"
+      },
+      {
+        prompt: "【3択】不利益な処分の前に、本人の言い分を聞く手続として代表的なものは？",
+        choices: [
+          "聴聞",
+          "時効",
+          "口頭弁論終結"
+        ],
+        correctIndex: 0,
+        answer: "不利益処分前の意見聴取の代表は聴聞。",
+        explanation: "先に言い分を聞くことで、処分の公平性を高めます。",
+        pitfall: "処分後の救済手続と混同しない。",
+        terms: ["聴聞", "不利益処分", "手続保障"],
+        trendTag: "過去5年頻出: 行政手続法"
+      },
+      {
+        prompt: "【3択】行政の判断が常識的に見てひどく不合理なとき、裁判で問題になる考え方は？",
+        choices: [
+          "裁量権の逸脱・濫用",
+          "一事不再理",
+          "時効取得"
+        ],
+        correctIndex: 0,
+        answer: "著しく不合理なら裁量権逸脱・濫用として違法になり得る。",
+        explanation: "行政には裁量があっても、何でも自由に決めてよいわけではありません。",
+        pitfall: "不当（気に入らない）と違法（法的に問題）を分ける。",
+        terms: ["裁量", "逸脱濫用", "違法"],
+        trendTag: "過去5年頻出: 行政法総合"
+      }
+    ],
+    civil: [
+      {
+        prompt: "【3択】契約が成立する基本の組み合わせはどれ？",
+        choices: [
+          "申込みと承諾",
+          "申込みと撤回",
+          "通知と催告"
+        ],
+        correctIndex: 0,
+        answer: "契約成立の基本は申込みと承諾。",
+        explanation: "まずはこの2つで契約が成立する、という骨格を押さえます。",
+        pitfall: "撤回や解除は成立後の話なので別物。",
+        terms: ["契約", "申込み", "承諾"],
+        trendTag: "過去5年頻出: 契約総論"
+      },
+      {
+        prompt: "【3択】『最初から効力がない』を表す言葉は？",
+        choices: [
+          "無効",
+          "取消し",
+          "追認"
+        ],
+        correctIndex: 0,
+        answer: "最初から効力がないのは無効。",
+        explanation: "無効はスタート時点から効力なし、取消しは有効に始まって後で消える、が基本です。",
+        pitfall: "無効と取消しの時点の違いを混同しない。",
+        terms: ["無効", "取消し", "効力"],
+        trendTag: "過去5年頻出: 民法総則"
+      },
+      {
+        prompt: "【3択】『いったん有効だが、あとで消せる』を表す言葉は？",
+        choices: [
+          "取消し",
+          "無効",
+          "時効"
+        ],
+        correctIndex: 0,
+        answer: "あとから効力を消せるのは取消し。",
+        explanation: "取消しは『後で取り消す』イメージで覚えると定着します。",
+        pitfall: "無効と反対方向で覚えると整理しやすい。",
+        terms: ["取消し", "意思表示", "効力"],
+        trendTag: "過去5年頻出: 民法総則"
+      },
+      {
+        prompt: "【3択】約束したことを果たさない状態はどれ？",
+        choices: [
+          "債務不履行",
+          "代理",
+          "相殺"
+        ],
+        correctIndex: 0,
+        answer: "約束を守らないのは債務不履行。",
+        explanation: "支払わない、渡さない、遅れるなどが典型です。",
+        pitfall: "相手の責任があるか、自分の責任かを切り分ける。",
+        terms: ["債務不履行", "損害賠償", "契約"],
+        trendTag: "過去5年頻出: 債権"
+      },
+      {
+        prompt: "【3択】代理人が契約すると、効果が帰属する先は原則どこ？",
+        choices: [
+          "本人",
+          "代理人",
+          "第三者"
+        ],
+        correctIndex: 0,
+        answer: "代理行為の効果は原則として本人に帰属。",
+        explanation: "代理人は『本人の代わりに』行動します。",
+        pitfall: "代理人が自分のためにした行為と区別する。",
+        terms: ["代理", "本人", "帰属"],
+        trendTag: "過去5年頻出: 代理"
+      },
+      {
+        prompt: "【3択】連帯保証人について正しい説明はどれ？",
+        choices: [
+          "債権者は主たる債務者を飛ばして請求できる",
+          "主たる債務者にしか請求できない",
+          "連帯保証人は絶対に支払わなくてよい"
+        ],
+        correctIndex: 0,
+        answer: "連帯保証人には直接請求できる。",
+        explanation: "連帯保証は責任が重い点が試験でよく問われます。",
+        pitfall: "通常保証との違いを曖昧にしない。",
+        terms: ["連帯保証", "保証債務", "請求"],
+        trendTag: "過去5年頻出: 保証"
+      }
+    ],
+    const_basic: [
+      {
+        prompt: "【3択】法の下の平等の考え方として最も近いのはどれ？",
+        choices: [
+          "合理的な理由なく差別してはいけない",
+          "全員をいつも全く同じに扱う",
+          "国は差別しても自由"
+        ],
+        correctIndex: 0,
+        answer: "合理的理由のない差別は許されない、が基本。",
+        explanation: "同じに扱うべきかは事情で変わるので、『合理的理由』がキーワードです。",
+        pitfall: "平等=完全同一扱い、と短絡しない。",
+        terms: ["平等原則", "合理的区別", "憲法"],
+        trendTag: "過去5年頻出: 憲法人権"
+      },
+      {
+        prompt: "【3択】表現の自由が特に大切とされる理由として近いのはどれ？",
+        choices: [
+          "民主主義で意見を出し合う土台になるから",
+          "うわさを自由に広めるため",
+          "他人の権利を無視できるから"
+        ],
+        correctIndex: 0,
+        answer: "民主主義の土台だから重視される。",
+        explanation: "ただし他人の権利との調整は必要です。",
+        pitfall: "『自由=無制限』ではない。",
+        terms: ["表現の自由", "民主主義", "公共の福祉"],
+        trendTag: "過去5年頻出: 憲法人権"
+      },
+      {
+        prompt: "【3択】三権分立の説明として正しいのはどれ？",
+        choices: [
+          "国会・内閣・裁判所で権力を分ける",
+          "内閣がすべてを決める",
+          "裁判所が法律を作る"
+        ],
+        correctIndex: 0,
+        answer: "立法・行政・司法を分けるのが三権分立。",
+        explanation: "権力を分けてチェックし合うことで、権力の暴走を防ぎます。",
+        pitfall: "各機関の役割を入れ替えない。",
+        terms: ["三権分立", "国会", "裁判所"],
+        trendTag: "過去5年頻出: 統治"
+      },
+      {
+        prompt: "【3択】法律が憲法に反していないか最終的に判断する役割はどこ？",
+        choices: [
+          "裁判所",
+          "内閣",
+          "都道府県"
+        ],
+        correctIndex: 0,
+        answer: "違憲審査の中核は裁判所。",
+        explanation: "具体的な争いの中で、法律の合憲性が判断されます。",
+        pitfall: "国会が自分で最終判断するわけではない。",
+        terms: ["違憲審査", "裁判所", "憲法"],
+        trendTag: "過去5年頻出: 違憲審査"
+      },
+      {
+        prompt: "【3択】信教の自由の説明として正しいのはどれ？",
+        choices: [
+          "どの宗教を信じるか、信じないかを自分で決められる",
+          "国が宗教を強制できる",
+          "学校で特定宗教を強制してよい"
+        ],
+        correctIndex: 0,
+        answer: "信じる自由・信じない自由を含む。",
+        explanation: "宗教に関する国家の中立性が重視されます。",
+        pitfall: "『信じる自由』だけでなく『信じない自由』もある。",
+        terms: ["信教の自由", "政教分離", "人権"],
+        trendTag: "過去5年頻出: 憲法人権"
+      },
+      {
+        prompt: "【3択】基礎法学の観点で正しい説明はどれ？",
+        choices: [
+          "法律は国家の強制力をともなうルール",
+          "道徳と法律は常に同じ内容",
+          "法律は裁判で使われない"
+        ],
+        correctIndex: 0,
+        answer: "法律は公的な強制力を伴う規範。",
+        explanation: "道徳と重なる部分はありますが、完全に同じではありません。",
+        pitfall: "法律と道徳を同一視しすぎない。",
+        terms: ["基礎法学", "規範", "強制力"],
+        trendTag: "過去5年頻出: 基礎法学"
+      }
+    ],
+    commercial: [
+      {
+        prompt: "【3択】株式会社で重要事項を最終的に決める機関はどれ？",
+        choices: [
+          "株主総会",
+          "監査役",
+          "会計監査人"
+        ],
+        correctIndex: 0,
+        answer: "重要事項の決定機関は株主総会。",
+        explanation: "会社の所有者である株主が集まって決める場です。",
+        pitfall: "業務執行を決める取締役会と混同しない。",
+        terms: ["株主総会", "会社機関", "会社法"],
+        trendTag: "過去5年頻出: 会社機関"
+      },
+      {
+        prompt: "【3択】取締役の基本的な役割として最も近いのはどれ？",
+        choices: [
+          "会社の業務を進める・決める",
+          "裁判所の判決を書く",
+          "行政処分を出す"
+        ],
+        correctIndex: 0,
+        answer: "取締役は会社の業務執行に関わる。",
+        explanation: "会社の運営を担う中心メンバーです。",
+        pitfall: "行政機関や裁判所の役割と混同しない。",
+        terms: ["取締役", "業務執行", "会社法"],
+        trendTag: "過去5年頻出: 取締役"
+      },
+      {
+        prompt: "【3択】代表取締役の説明として正しいのはどれ？",
+        choices: [
+          "会社を外部に対して代表する",
+          "株主の代わりに裁判官を任命する",
+          "税率を決める"
+        ],
+        correctIndex: 0,
+        answer: "代表取締役は会社を代表する立場。",
+        explanation: "契約など対外的な行為を行う中心です。",
+        pitfall: "社内の意思決定機関との役割差を整理する。",
+        terms: ["代表取締役", "代表権", "会社"],
+        trendTag: "過去5年頻出: 代表機関"
+      },
+      {
+        prompt: "【3択】定款とは何？",
+        choices: [
+          "会社の基本ルールをまとめたもの",
+          "毎日の売上メモ",
+          "裁判の判決文"
+        ],
+        correctIndex: 0,
+        answer: "定款は会社の基本ルール。",
+        explanation: "会社の目的や機関など、土台になる事項を定めます。",
+        pitfall: "就業規則など他の社内文書と混同しない。",
+        terms: ["定款", "会社設立", "会社法"],
+        trendTag: "過去5年頻出: 設立・定款"
+      },
+      {
+        prompt: "【3択】株主の責任として正しいものはどれ？",
+        choices: [
+          "原則として出資額の範囲で責任を負う",
+          "会社の借金を無制限で負う",
+          "会社の義務は一切ない"
+        ],
+        correctIndex: 0,
+        answer: "株主は原則、有限責任（出資額まで）。",
+        explanation: "無制限責任ではない点が株式会社の基本です。",
+        pitfall: "合名会社などの無限責任と混同しない。",
+        terms: ["有限責任", "株主", "出資"],
+        trendTag: "過去5年頻出: 会社法基礎"
+      },
+      {
+        prompt: "【3択】取締役会の役割として近いのはどれ？",
+        choices: [
+          "業務執行の決定と取締役の監督",
+          "国会の法律審議",
+          "市長の選挙管理"
+        ],
+        correctIndex: 0,
+        answer: "取締役会は業務執行の決定と監督が中心。",
+        explanation: "会社内部の統治を機能させるための機関です。",
+        pitfall: "株主総会が決める事項との切り分けを意識する。",
+        terms: ["取締役会", "監督", "業務執行"],
+        trendTag: "過去5年頻出: 会社機関"
+      }
+    ],
+    general: [
+      {
+        prompt: "【3択】個人情報として最も当てはまるのはどれ？",
+        choices: [
+          "名前と生年月日がセットで本人を特定できる情報",
+          "天気予報の一般情報",
+          "都市の人口ランキングだけの表"
+        ],
+        correctIndex: 0,
+        answer: "本人を識別できる情報は個人情報。",
+        explanation: "誰の情報か特定できるかがポイントです。",
+        pitfall: "匿名化された統計データと混同しない。",
+        terms: ["個人情報", "識別", "保護"],
+        trendTag: "過去5年頻出: 個人情報分野"
+      },
+      {
+        prompt: "【3択】文章理解問題を解く最初の行動として効果的なのはどれ？",
+        choices: [
+          "設問を先に読んで、探す情報を決める",
+          "本文を何度も全部読むだけ",
+          "本文を読まずに選択肢だけで答える"
+        ],
+        correctIndex: 0,
+        answer: "先に設問を読むと必要情報を拾いやすい。",
+        explanation: "時間を守るために、読む目的を先に決めます。",
+        pitfall: "本文を漫然と読むだけにならない。",
+        terms: ["文章理解", "設問先読み", "時間配分"],
+        trendTag: "過去5年頻出: 文章理解"
+      },
+      {
+        prompt: "【3択】情報セキュリティで安全な行動はどれ？",
+        choices: [
+          "同じパスワードを使い回さない",
+          "全サービスで同じ短いパスワードにする",
+          "パスワードをメモで公開する"
+        ],
+        correctIndex: 0,
+        answer: "使い回し防止は基本の対策。",
+        explanation: "1つ漏れると連鎖被害になるため、分けるのが安全です。",
+        pitfall: "便利さだけで安全対策を省かない。",
+        terms: ["情報セキュリティ", "パスワード", "リスク"],
+        trendTag: "過去5年頻出: 情報分野"
+      },
+      {
+        prompt: "【3択】グラフ読解で先に確認するとミスが減るのはどれ？",
+        choices: [
+          "単位と期間（％、人、年など）",
+          "グラフの色の好み",
+          "作成者の名前だけ"
+        ],
+        correctIndex: 0,
+        answer: "単位・期間の確認が最優先。",
+        explanation: "単位を見落とすと、計算や比較でミスしやすくなります。",
+        pitfall: "数字だけ追って単位を飛ばさない。",
+        terms: ["資料読解", "単位", "期間"],
+        trendTag: "過去5年頻出: 基礎知識読解"
+      },
+      {
+        prompt: "【3択】SNSで個人情報を守る行動として適切なのはどれ？",
+        choices: [
+          "公開範囲を必要最小限に設定する",
+          "位置情報を常に全公開する",
+          "パスワードを友人全員に教える"
+        ],
+        correctIndex: 0,
+        answer: "公開範囲をしぼるのが基本。",
+        explanation: "外部公開が広いほど情報漏えいリスクが上がります。",
+        pitfall: "初期設定のまま公開しない。",
+        terms: ["SNS", "公開範囲", "個人情報"],
+        trendTag: "過去5年頻出: 情報分野"
+      },
+      {
+        prompt: "【3択】ニュース問題の対策として有効なのはどれ？",
+        choices: [
+          "直前期に公式情報の更新を確認する",
+          "1年前の情報だけを固定で覚える",
+          "根拠なく予想だけで解く"
+        ],
+        correctIndex: 0,
+        answer: "更新される分野は直前確認が有効。",
+        explanation: "情報分野は改正や新制度などの更新に注意が必要です。",
+        pitfall: "古い情報のまま本番に行かない。",
+        terms: ["時事", "更新確認", "基礎知識"],
+        trendTag: "過去5年頻出: 時事・情報"
+      }
+    ],
+    describe: [
+      {
+        prompt: "【3択】記述問題で最も安定しやすい書き方の順番はどれ？",
+        choices: [
+          "要件→当てはめ→結論",
+          "結論→結論→結論",
+          "感想→要件→結論"
+        ],
+        correctIndex: 0,
+        answer: "基本の型は要件→当てはめ→結論。",
+        explanation: "順番を固定すると、書き漏れが減ります。",
+        pitfall: "結論だけ先に書いて根拠を落とさない。",
+        terms: ["記述", "要件", "当てはめ"],
+        trendTag: "過去5年頻出: 記述式"
+      },
+      {
+        prompt: "【3択】記述で失点しにくい表現はどれ？",
+        choices: [
+          "主語と法令名をはっきり書く",
+          "誰の話か書かない",
+          "略語だけで書く"
+        ],
+        correctIndex: 0,
+        answer: "主語と法令名を明示すると採点者に伝わりやすい。",
+        explanation: "短い答案ほど、主語の省略が失点に直結します。",
+        pitfall: "『誰が何をするか』を曖昧にしない。",
+        terms: ["主語", "法令名", "記述"],
+        trendTag: "過去5年頻出: 記述式"
+      },
+      {
+        prompt: "【3択】記述でまず避けるべきミスはどれ？",
+        choices: [
+          "要件を書かずに結論だけ書く",
+          "要件を書いてから結論を書く",
+          "字数を確認して書く"
+        ],
+        correctIndex: 0,
+        answer: "要件抜けは大きな失点原因。",
+        explanation: "正しい結論でも、根拠がなければ点が伸びません。",
+        pitfall: "『当たっているはず』ではなく論理を見せる。",
+        terms: ["要件漏れ", "結論", "失点回避"],
+        trendTag: "過去5年頻出: 記述式"
+      },
+      {
+        prompt: "【3択】字数指定がある記述問題で正しい対応はどれ？",
+        choices: [
+          "指定字数の範囲に合わせる",
+          "字数指定を無視して長文にする",
+          "短く1行だけで終える"
+        ],
+        correctIndex: 0,
+        answer: "字数条件は採点条件なので守る。",
+        explanation: "内容が良くても、形式違反は評価を下げます。",
+        pitfall: "書き切る前に字数を使い切らないよう下書きする。",
+        terms: ["字数指定", "採点条件", "記述"],
+        trendTag: "過去5年頻出: 記述式"
+      },
+      {
+        prompt: "【3択】記述で『当てはめ』にあたる部分はどれ？",
+        choices: [
+          "事実を要件に結び付けて説明する部分",
+          "法律名だけを書く部分",
+          "最後に感想を書く部分"
+        ],
+        correctIndex: 0,
+        answer: "事実を要件へつなぐのが当てはめ。",
+        explanation: "要件を書くだけでなく、具体的事実と結ぶことが得点源です。",
+        pitfall: "条文暗記だけで答案を作らない。",
+        terms: ["当てはめ", "事実評価", "要件"],
+        trendTag: "過去5年頻出: 記述式"
+      },
+      {
+        prompt: "【3択】記述の見直しで最初に確認するとよい点はどれ？",
+        choices: [
+          "主語・結論・法令名が入っているか",
+          "文字の大きさだけ",
+          "余白の広さだけ"
+        ],
+        correctIndex: 0,
+        answer: "主語・結論・法令名は最低チェック項目。",
+        explanation: "短時間の見直しでは、得点に直結する要素を優先します。",
+        pitfall: "見直しを文章のきれいさだけで終えない。",
+        terms: ["見直し", "主語", "結論"],
+        trendTag: "過去5年頻出: 記述式"
+      }
+    ]
+  };
+
   let mockTimerId = null;
 
   let state = loadState();
@@ -247,10 +781,13 @@
   function defaultQuestion() {
     return {
       prompt: "",
+      choices: [],
+      correctIndex: 0,
       answer: "",
       explanation: "",
       pitfall: "",
-      terms: []
+      terms: [],
+      trendTag: ""
     };
   }
 
@@ -264,7 +801,9 @@
       startedAt: "",
       message: "",
       showExplanation: false,
-      primerReadTopicIds: []
+      primerReadTopicIds: [],
+      selectedChoice: -1,
+      pendingResult: null
     };
   }
 
@@ -393,6 +932,15 @@
         .filter(Boolean);
     }
     state.drill.showExplanation = Boolean(state.drill.showExplanation);
+    state.drill.selectedChoice = Number.isInteger(state.drill.selectedChoice)
+      ? state.drill.selectedChoice
+      : -1;
+    if (state.drill.selectedChoice < -1 || state.drill.selectedChoice > 2) {
+      state.drill.selectedChoice = -1;
+    }
+    if (typeof state.drill.pendingResult !== "boolean") {
+      state.drill.pendingResult = null;
+    }
 
     if (!Array.isArray(state.mock.queue)) {
       state.mock.queue = [];
@@ -508,6 +1056,23 @@
     safe.answer = String(safe.answer || "").trim();
     safe.explanation = String(safe.explanation || "").trim();
     safe.pitfall = String(safe.pitfall || "").trim();
+    safe.trendTag = String(safe.trendTag || "").trim();
+
+    if (!Array.isArray(safe.choices)) {
+      safe.choices = [];
+    }
+    safe.choices = safe.choices
+      .map((choice) => String(choice || "").trim())
+      .filter(Boolean)
+      .slice(0, 3);
+
+    const parsedCorrectIndex = Number(safe.correctIndex);
+    safe.correctIndex = Number.isInteger(parsedCorrectIndex)
+      ? parsedCorrectIndex
+      : 0;
+    if (safe.correctIndex < 0 || safe.correctIndex > 2) {
+      safe.correctIndex = 0;
+    }
 
     if (!Array.isArray(safe.terms)) {
       safe.terms = parseTerms(String(safe.terms || ""));
@@ -540,9 +1105,8 @@
     });
     byId("startDrillBtn").addEventListener("click", onStartDrill);
     byId("drillPrimerDoneBtn").addEventListener("click", onDrillPrimerDone);
-    byId("revealAnswerBtn").addEventListener("click", onRevealDrillAnswer);
-    byId("correctBtn").addEventListener("click", () => handleDrillAnswer(true));
-    byId("incorrectBtn").addEventListener("click", () => handleDrillAnswer(false));
+    byId("drillChoicesWrap").addEventListener("click", onDrillChoiceClick);
+    byId("applyReviewResultBtn").addEventListener("click", onApplyReviewResult);
     byId("skipBtn").addEventListener("click", onSkipDrillQuestion);
     byId("editCurrentQuestionBtn").addEventListener("click", onEditCurrentQuestion);
     byId("backToPrimerBtn").addEventListener("click", onBackToPrimer);
@@ -555,8 +1119,7 @@
 
     byId("startMockBtn").addEventListener("click", onStartMockExam);
     byId("finishMockBtn").addEventListener("click", () => finishMockExam("模試を手動終了しました。"));
-    byId("mockCorrectBtn").addEventListener("click", () => handleMockAnswer("correct"));
-    byId("mockIncorrectBtn").addEventListener("click", () => handleMockAnswer("wrong"));
+    byId("mockChoicesWrap").addEventListener("click", onMockChoiceClick);
     byId("mockSkipBtn").addEventListener("click", () => handleMockAnswer("hold"));
 
     byId("glossarySearchInput").addEventListener("input", renderGlossary);
@@ -774,7 +1337,9 @@
       startedAt: today,
       message: "ドリル開始。まず要点を確認してから問題を解きます。",
       showExplanation: false,
-      primerReadTopicIds: []
+      primerReadTopicIds: [],
+      selectedChoice: -1,
+      pendingResult: null
     };
 
     saveState();
@@ -795,14 +1360,25 @@
       state.drill.primerReadTopicIds.push(current.topic.id);
     }
     state.drill.showExplanation = false;
+    state.drill.selectedChoice = -1;
+    state.drill.pendingResult = null;
     state.drill.message = `${current.topic.name} の要点確認を完了。問題に進んでください。`;
 
     saveState();
     renderDrill();
   }
 
-  function onRevealDrillAnswer() {
+  function onDrillChoiceClick(event) {
     if (!state.drill.active) {
+      return;
+    }
+
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+    const button = target.closest("button[data-choice-index]");
+    if (!(button instanceof HTMLButtonElement)) {
       return;
     }
 
@@ -818,11 +1394,34 @@
       return;
     }
 
+    const detail = getQuestionDetail(current.topic.id, current.questionNo, false);
+    const picked = Number(button.dataset.choiceIndex);
+    if (!Number.isInteger(picked) || picked < 0 || picked > 2) {
+      return;
+    }
+
+    state.drill.selectedChoice = picked;
+    state.drill.pendingResult = picked === detail.correctIndex;
     state.drill.showExplanation = true;
-    state.drill.message = "解説を読んだら『できた/できない』で判定してください。";
+    state.drill.message = "解説を確認してから『次の問題へ』を押してください。";
 
     saveState();
     renderDrill();
+  }
+
+  function onApplyReviewResult() {
+    if (!state.drill.active) {
+      return;
+    }
+
+    if (!state.drill.showExplanation || typeof state.drill.pendingResult !== "boolean") {
+      state.drill.message = "先に3つの選択肢から1つ選んでください。";
+      saveState();
+      renderDrill();
+      return;
+    }
+
+    applyDrillResult(state.drill.pendingResult);
   }
 
   function onBackToPrimer() {
@@ -838,6 +1437,8 @@
     state.drill.primerReadTopicIds = state.drill.primerReadTopicIds
       .filter((topicId) => topicId !== current.topic.id);
     state.drill.showExplanation = false;
+    state.drill.selectedChoice = -1;
+    state.drill.pendingResult = null;
     state.drill.message = `${current.topic.name} の要点に戻りました。`;
 
     saveState();
@@ -850,6 +1451,8 @@
     }
 
     state.drill.showExplanation = false;
+    state.drill.selectedChoice = -1;
+    state.drill.pendingResult = null;
     state.drill.pointer += 1;
     state.drill.message = "スキップしました。";
 
@@ -872,7 +1475,7 @@
     renderQuestionEditor();
   }
 
-  function handleDrillAnswer(isCorrect) {
+  function applyDrillResult(isCorrect) {
     if (!state.drill.active) {
       return;
     }
@@ -890,7 +1493,7 @@
     }
 
     if (!state.drill.showExplanation) {
-      state.drill.message = "先に『答えと解説を見る』を押してください。";
+      state.drill.message = "先に3択から1つ選んでください。";
       saveState();
       renderDrill();
       return;
@@ -900,6 +1503,8 @@
     const topic = state.topics.find((item) => item.id === topicId);
     if (!topic) {
       state.drill.showExplanation = false;
+      state.drill.selectedChoice = -1;
+      state.drill.pendingResult = null;
       state.drill.pointer += 1;
       finalizeDrillIfDone();
       saveState();
@@ -950,6 +1555,8 @@
 
     state.progress[topicId] = normalizeProgress(topic, progress);
     state.drill.showExplanation = false;
+    state.drill.selectedChoice = -1;
+    state.drill.pendingResult = null;
     state.drill.pointer += 1;
 
     finalizeDrillIfDone();
@@ -968,6 +1575,8 @@
 
     state.drill.active = false;
     state.drill.showExplanation = false;
+    state.drill.selectedChoice = -1;
+    state.drill.pendingResult = null;
     state.drill.message = `本日のドリル終了: 正解 ${state.drill.correctCount} / 不正解 ${state.drill.wrongCount} / 正答率 ${correctRate}%`;
     state.todayPlan = { date: "", tasks: [] };
   }
@@ -993,12 +1602,30 @@
       return;
     }
 
+    const choices = [
+      byId("questionChoice1Input").value.trim(),
+      byId("questionChoice2Input").value.trim(),
+      byId("questionChoice3Input").value.trim()
+    ];
+    if (choices.some((choice) => !choice)) {
+      alert("選択肢1〜3をすべて入力してください。");
+      return;
+    }
+
+    const correctIndexRaw = Number(byId("questionCorrectIndexSelect").value);
+    const correctIndex = Number.isInteger(correctIndexRaw) && correctIndexRaw >= 0 && correctIndexRaw <= 2
+      ? correctIndexRaw
+      : 0;
+
     const detail = {
       prompt: byId("questionPromptInput").value.trim(),
+      choices,
+      correctIndex,
       answer: byId("questionAnswerInput").value.trim(),
       explanation: byId("questionExplanationInput").value.trim(),
       pitfall: byId("questionPitfallInput").value.trim(),
-      terms: parseTerms(byId("questionTermsInput").value)
+      terms: parseTerms(byId("questionTermsInput").value),
+      trendTag: PAST5_TREND_BY_TOPIC[topicId] || ""
     };
 
     if (!state.questionBank[topicId] || typeof state.questionBank[topicId] !== "object") {
@@ -1009,7 +1636,7 @@
 
     state.questionEditor.topicId = topicId;
     state.questionEditor.questionNo = questionNo;
-    state.questionEditor.message = `${topic.name} Q${questionNo} の解説を保存しました。`;
+    state.questionEditor.message = `${topic.name} Q${questionNo} の3択問題を保存しました。`;
 
     saveState();
     renderQuestionEditor();
@@ -1093,6 +1720,37 @@
     renderAll();
   }
 
+  function onMockChoiceClick(event) {
+    if (!state.mock.active) {
+      return;
+    }
+
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+    const button = target.closest("button[data-choice-index]");
+    if (!(button instanceof HTMLButtonElement)) {
+      return;
+    }
+
+    const picked = Number(button.dataset.choiceIndex);
+    if (!Number.isInteger(picked) || picked < 0 || picked > 2) {
+      return;
+    }
+
+    const item = state.mock.queue[state.mock.pointer];
+    if (!item) {
+      finishMockExam("模試を終了しました。");
+      return;
+    }
+
+    const detail = getQuestionDetail(item.topicId, item.questionNo, false);
+    const isCorrect = picked === detail.correctIndex;
+    state.mock.message = isCorrect ? "この問題は正解です。" : `この問題は不正解です。正解: ${detail.choices[detail.correctIndex]}`;
+    handleMockAnswer(isCorrect ? "correct" : "wrong");
+  }
+
   function handleMockAnswer(kind) {
     if (!state.mock.active) {
       return;
@@ -1113,6 +1771,7 @@
       state.pitfallHeatmap[heatKey] = (state.pitfallHeatmap[heatKey] || 0) + 1;
     } else {
       state.mock.holdCount += 1;
+      state.mock.message = "この問題は保留にしました。";
     }
 
     state.mock.pointer += 1;
@@ -1407,6 +2066,7 @@
     const primerPanel = byId("drillPrimerPanel");
     const questionPanel = byId("drillQuestionPanel");
     const reviewPanel = byId("drillReviewPanel");
+    const choicesWrap = byId("drillChoicesWrap");
 
     if (!state.drill.active) {
       idle.classList.remove("hidden");
@@ -1416,7 +2076,11 @@
       byId("drillPrimerList").innerHTML = "";
       byId("drillPrimerTip").textContent = "";
       byId("drillPrompt").textContent = "";
+      choicesWrap.innerHTML = "";
       byId("drillRule").textContent = "";
+      byId("drillResultLine").textContent = "";
+      byId("drillResultLine").classList.remove("okText", "ngText");
+      byId("drillChoiceLine").textContent = "";
       byId("drillAnswerLine").textContent = "";
       byId("drillExplanationLine").textContent = "";
       byId("drillPitfallLine").textContent = "";
@@ -1453,9 +2117,16 @@
       byId("drillPrimerList").innerHTML = textbook.points
         .map((point) => `<li>${escapeHtml(point)}</li>`)
         .join("");
-      byId("drillPrimerTip").textContent = `暗記フレーズ: ${textbook.tip}`;
+      const trendText = detail.trendTag || PAST5_TREND_BY_TOPIC[current.topic.id] || "";
+      byId("drillPrimerTip").textContent = trendText
+        ? `暗記フレーズ: ${textbook.tip} / ${trendText}`
+        : `暗記フレーズ: ${textbook.tip}`;
 
       byId("drillPrompt").textContent = "";
+      choicesWrap.innerHTML = "";
+      byId("drillResultLine").textContent = "";
+      byId("drillResultLine").classList.remove("okText", "ngText");
+      byId("drillChoiceLine").textContent = "";
       byId("drillAnswerLine").textContent = "";
       byId("drillExplanationLine").textContent = "";
       byId("drillPitfallLine").textContent = "";
@@ -1472,22 +2143,41 @@
     byId("drillPrimerList").innerHTML = "";
     byId("drillPrimerTip").textContent = "";
 
+    choicesWrap.innerHTML = detail.choices
+      .map((choice, index) => {
+        const label = `${index + 1}. ${choice}`;
+        const disabled = state.drill.showExplanation ? "disabled" : "";
+        return `<button type="button" class="choiceBtn" data-choice-index="${index}" ${disabled}>${escapeHtml(label)}</button>`;
+      })
+      .join("");
+
     if (state.drill.showExplanation) {
       reviewPanel.classList.remove("hidden");
+      const isCorrect = state.drill.pendingResult === true;
+      const picked = detail.choices[state.drill.selectedChoice] || "未選択";
+      const correct = detail.choices[detail.correctIndex] || "";
+      byId("drillResultLine").textContent = isCorrect ? "結果: 正解" : "結果: 不正解";
+      byId("drillResultLine").classList.toggle("okText", isCorrect);
+      byId("drillResultLine").classList.toggle("ngText", !isCorrect);
+      byId("drillChoiceLine").textContent = `あなたの回答: ${picked} / 正解: ${correct}`;
       byId("drillAnswerLine").textContent = `正答根拠: ${detail.answer}`;
       byId("drillExplanationLine").textContent = `解説: ${detail.explanation}`;
       byId("drillPitfallLine").textContent = `間違えやすい点: ${detail.pitfall}`;
-      byId("drillTermsLine").textContent = `関連用語: ${detail.terms.join(" / ")}`;
-      byId("drillMessage").textContent = state.drill.message || "解説を読んだら、できた/できないを押してください。";
+      const trendTail = detail.trendTag ? ` / ${detail.trendTag}` : "";
+      byId("drillTermsLine").textContent = `関連用語: ${detail.terms.join(" / ")}${trendTail}`;
+      byId("drillMessage").textContent = state.drill.message || "解説を確認したら次の問題へ進んでください。";
       return;
     }
 
     reviewPanel.classList.add("hidden");
+    byId("drillResultLine").textContent = "";
+    byId("drillResultLine").classList.remove("okText", "ngText");
+    byId("drillChoiceLine").textContent = "";
     byId("drillAnswerLine").textContent = "";
     byId("drillExplanationLine").textContent = "";
     byId("drillPitfallLine").textContent = "";
     byId("drillTermsLine").textContent = "";
-    byId("drillMessage").textContent = state.drill.message || "まず問題を考えてから『答えと解説を見る』を押してください。";
+    byId("drillMessage").textContent = state.drill.message || "3択から1つ選んでください。";
   }
 
   function renderQuestionEditor() {
@@ -1511,6 +2201,10 @@
     const detail = getQuestionDetail(state.questionEditor.topicId, state.questionEditor.questionNo, false);
 
     byId("questionPromptInput").value = detail.prompt;
+    byId("questionChoice1Input").value = detail.choices[0] || "";
+    byId("questionChoice2Input").value = detail.choices[1] || "";
+    byId("questionChoice3Input").value = detail.choices[2] || "";
+    byId("questionCorrectIndexSelect").value = String(detail.correctIndex);
     byId("questionAnswerInput").value = detail.answer;
     byId("questionExplanationInput").value = detail.explanation;
     byId("questionPitfallInput").value = detail.pitfall;
@@ -1527,6 +2221,7 @@
     if (!state.mock.active) {
       idle.classList.remove("hidden");
       active.classList.add("hidden");
+      byId("mockChoicesWrap").innerHTML = "";
       byId("mockMessage").textContent = state.mock.message || "";
       return;
     }
@@ -1556,7 +2251,13 @@
 
     byId("mockQuestionHead").textContent = `${item.format} / ${topic.name} Q${item.questionNo} / ${item.points}点`;
     byId("mockQuestionPrompt").textContent = detail.prompt;
-    byId("mockQuestionExplain").textContent = `正答根拠(答え合わせ用): ${detail.answer}`;
+    byId("mockChoicesWrap").innerHTML = detail.choices
+      .map((choice, index) => {
+        const label = `${index + 1}. ${choice}`;
+        return `<button type="button" class="choiceBtn" data-choice-index="${index}">${escapeHtml(label)}</button>`;
+      })
+      .join("");
+    byId("mockQuestionExplain").textContent = "3択を選択してください。";
     byId("mockMessage").textContent = state.mock.message || "";
   }
 
@@ -1694,10 +2395,13 @@
     if (!topic) {
       return {
         prompt: "問題セットが存在しません。",
+        choices: ["-", "-", "-"],
+        correctIndex: 0,
         answer: "",
         explanation: "",
         pitfall: "",
-        terms: []
+        terms: [],
+        trendTag: ""
       };
     }
 
@@ -1728,17 +2432,22 @@
 
   function withFallbackQuestionDetail(topic, questionNo, source) {
     const categoryKey = GENERIC_EXPLANATION[topic.category] ? topic.category : "minor";
-    const terms = Array.isArray(source.terms) && source.terms.length > 0
-      ? source.terms
-      : defaultTermsForTopic(topic);
+    const auto = buildAutoChoiceDetail(topic, questionNo);
+    const hasSourceChoices = hasCompleteChoices(source.choices);
+    const parsedSourceCorrect = Number(source.correctIndex);
+    const sourceCorrectValid = Number.isInteger(parsedSourceCorrect) && parsedSourceCorrect >= 0 && parsedSourceCorrect <= 2;
+    const terms = Array.isArray(source.terms) && source.terms.length > 0 ? source.terms : auto.terms;
 
-    return {
-      prompt: source.prompt || buildAutoPrompt(topic, questionNo),
-      answer: source.answer || "条文の根拠 + 判例結論 + 例外条件を1行で言えること。",
-      explanation: source.explanation || GENERIC_EXPLANATION[categoryKey],
-      pitfall: source.pitfall || "主語・語尾・期限の取り違いに注意。",
-      terms
-    };
+    return normalizeQuestion({
+      prompt: hasSourceChoices ? (source.prompt || auto.prompt) : auto.prompt,
+      choices: hasSourceChoices ? source.choices : auto.choices,
+      correctIndex: hasSourceChoices && sourceCorrectValid ? parsedSourceCorrect : auto.correctIndex,
+      answer: source.answer || auto.answer || `正解は「${auto.choices[auto.correctIndex]}」。`,
+      explanation: source.explanation || auto.explanation || GENERIC_EXPLANATION[categoryKey],
+      pitfall: source.pitfall || auto.pitfall || "主語・語尾・期限の取り違いに注意。",
+      terms,
+      trendTag: source.trendTag || auto.trendTag || PAST5_TREND_BY_TOPIC[topic.id] || ""
+    });
   }
 
   function getTopicTextbook(topic) {
@@ -1751,23 +2460,42 @@
     return CATEGORY_TEXTBOOK[categoryKey];
   }
 
-  function buildAutoPrompt(topic, questionNo) {
-    const textbook = getTopicTextbook(topic);
-    const points = Array.isArray(textbook.points) && textbook.points.length > 0
-      ? textbook.points
-      : ["要件を確認する。", "効果を確認する。", "例外を確認する。"];
+  function buildAutoChoiceDetail(topic, questionNo) {
+    const bank = PAST5_CHOICE_BANK[topic.id];
+    if (Array.isArray(bank) && bank.length > 0) {
+      const picked = bank[(Math.max(1, questionNo) - 1) % bank.length];
+      return normalizeQuestion({
+        ...picked,
+        trendTag: picked.trendTag || PAST5_TREND_BY_TOPIC[topic.id] || ""
+      });
+    }
 
-    const pattern = questionNo % 4;
-    if (pattern === 1) {
-      return `【問題】${topic.name} Q${questionNo}\n「${points[0]}」を自分の言葉で1行で説明してください。`;
+    const textbook = getTopicTextbook(topic);
+    const points = Array.isArray(textbook.points) && textbook.points.length >= 3
+      ? textbook.points
+      : ["主語を確認する。", "要件を確認する。", "例外を確認する。"];
+
+    return normalizeQuestion({
+      prompt: `【3択】${topic.name} Q${questionNo}\n次のうち正しい学習アクションはどれ？`,
+      choices: [
+        `${points[0]} を先に確認する`,
+        "主語や期限を見ずに感覚で解く",
+        "例外を捨てて原則だけで答える"
+      ],
+      correctIndex: 0,
+      answer: `${points[0]} を先に確認するのが基本。`,
+      explanation: "要点→問題→解説の順で進めると、ミスの原因を特定しやすくなります。",
+      pitfall: "原則だけ覚えて例外を落とさない。",
+      terms: defaultTermsForTopic(topic),
+      trendTag: PAST5_TREND_BY_TOPIC[topic.id] || "過去5年傾向に合わせた基礎問題"
+    });
+  }
+
+  function hasCompleteChoices(choices) {
+    if (!Array.isArray(choices) || choices.length !== 3) {
+      return false;
     }
-    if (pattern === 2) {
-      return `【問題】${topic.name} Q${questionNo}\nこの論点の原則と例外を1つずつ挙げてください。`;
-    }
-    if (pattern === 3) {
-      return `【問題】${topic.name} Q${questionNo}\n「${points[1]}」を意識して、結論まで30秒で説明してください。`;
-    }
-    return `【問題】${topic.name} Q${questionNo}\n${textbook.tip} を使って要点を3つ言ってください。`;
+    return choices.every((choice) => String(choice || "").trim().length > 0);
   }
 
   function defaultTermsForTopic(topic) {

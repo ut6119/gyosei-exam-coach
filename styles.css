@@ -209,6 +209,31 @@ button.ng {
   flex: 1 1 150px;
 }
 
+.choiceList {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.choiceBtn {
+  text-align: left;
+  background: #ffffff;
+  border: 1px solid var(--line);
+}
+
+.choiceBtn:hover {
+  border-color: var(--brand);
+  background: #f1f7ff;
+}
+
+#drillResultLine.okText {
+  color: var(--ok);
+}
+
+#drillResultLine.ngText {
+  color: var(--ng);
+}
+
 .table {
   width: 100%;
   border-collapse: collapse;

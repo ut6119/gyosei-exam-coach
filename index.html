@@ -76,7 +76,7 @@
 
       <section class="card" id="drillCard">
         <h2>5. 反復ドリル</h2>
-        <p class="note">流れ: 要点を読む → 問題を解く → 解説を見る → できた/できないを押す</p>
+        <p class="note">流れ: 要点を読む → 3択を選ぶ → 解説を見る → 次の問題へ</p>
         <div id="drillIdle">ドリル開始を押すと、ここに出題されます（編集なしでOK）。</div>
         <div id="drillActive" class="hidden">
           <p id="drillProgress"></p>
@@ -92,22 +92,23 @@
 
           <div id="drillQuestionPanel" class="hidden">
             <p id="drillPrompt" class="questionBox"></p>
+            <div id="drillChoicesWrap" class="choiceList"></div>
             <p id="drillRule"></p>
             <div class="row">
-              <button id="revealAnswerBtn" type="button">答えと解説を見る</button>
               <button id="skipBtn" type="button">スキップ</button>
               <button id="editCurrentQuestionBtn" type="button">この問を編集</button>
             </div>
           </div>
 
           <div id="drillReviewPanel" class="questionBox hidden">
+            <p id="drillResultLine" class="questionHead"></p>
+            <p id="drillChoiceLine" class="note"></p>
             <p id="drillAnswerLine" class="note"></p>
             <p id="drillExplanationLine" class="note"></p>
             <p id="drillPitfallLine" class="note"></p>
             <p id="drillTermsLine" class="note"></p>
             <div class="row">
-              <button id="correctBtn" type="button" class="ok">できた（正解）</button>
-              <button id="incorrectBtn" type="button" class="ng">できない（最初へ）</button>
+              <button id="applyReviewResultBtn" type="button">次の問題へ</button>
             </div>
           </div>
 
@@ -131,6 +132,26 @@
         <div class="row stacked">
           <label for="questionPromptInput">問題文</label>
           <textarea id="questionPromptInput" rows="2"></textarea>
+        </div>
+        <div class="row stacked">
+          <label for="questionChoice1Input">選択肢1</label>
+          <input id="questionChoice1Input" type="text" />
+        </div>
+        <div class="row stacked">
+          <label for="questionChoice2Input">選択肢2</label>
+          <input id="questionChoice2Input" type="text" />
+        </div>
+        <div class="row stacked">
+          <label for="questionChoice3Input">選択肢3</label>
+          <input id="questionChoice3Input" type="text" />
+        </div>
+        <div class="row">
+          <label for="questionCorrectIndexSelect">正解の選択肢</label>
+          <select id="questionCorrectIndexSelect">
+            <option value="0">選択肢1</option>
+            <option value="1">選択肢2</option>
+            <option value="2">選択肢3</option>
+          </select>
         </div>
         <div class="row stacked">
           <label for="questionAnswerInput">正答根拠(短く)</label>
@@ -165,10 +186,9 @@
           <p id="mockProgress"></p>
           <p id="mockQuestionHead" class="questionHead"></p>
           <p id="mockQuestionPrompt" class="questionBox"></p>
+          <div id="mockChoicesWrap" class="choiceList"></div>
           <p id="mockQuestionExplain" class="note"></p>
           <div class="row">
-            <button id="mockCorrectBtn" type="button" class="ok">正解</button>
-            <button id="mockIncorrectBtn" type="button" class="ng">不正解</button>
             <button id="mockSkipBtn" type="button">保留で次へ</button>
           </div>
         </div>
