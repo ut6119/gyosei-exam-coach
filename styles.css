@@ -19,6 +19,7 @@ body {
   color: var(--text);
   font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
   line-height: 1.45;
+  padding-bottom: calc(72px + env(safe-area-inset-bottom));
 }
 
 .hero {
@@ -38,34 +39,65 @@ body {
 }
 
 .focusTabBar {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 0 16px 8px;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 60;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  position: sticky;
-  top: 0;
-  z-index: 40;
-  background: linear-gradient(180deg, rgba(246, 247, 251, 0.97), rgba(246, 247, 251, 0.88));
-  backdrop-filter: blur(2px);
+  gap: 0;
+  border-top: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(6px);
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 .focusTabBtn {
-  border-radius: 999px;
-  padding: 8px 10px;
-  font-size: 0.78rem;
+  border-radius: 0;
+  border: 0;
+  border-top: 0;
+  border-right: 0;
+  border-bottom: 0;
+  border-left: 1px solid #e1e6f0;
+  min-height: 64px;
+  padding: 6px 4px;
+  font-size: 0.74rem;
   font-weight: 700;
-  border-color: #bfd0ea;
-  background: #ffffff;
+  background: transparent;
   color: #26456f;
-  white-space: nowrap;
+  white-space: normal;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+}
+
+.focusTabBtn:first-child {
+  border-left: 0;
+}
+
+.focusTabIcon {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.focusTabLabel {
+  font-size: 0.67rem;
+  line-height: 1.1;
+  letter-spacing: 0.01em;
+  text-align: center;
 }
 
 .focusTabBtn.active {
-  border-color: #1f5fbf;
-  background: #1f5fbf;
-  color: #ffffff;
+  background: #eaf1ff;
+  color: #114da8;
 }
 
 .grid {
@@ -747,14 +779,16 @@ footer {
 
 @media (max-width: 720px) {
   .focusTabBar {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 6px;
-    padding: 2px 12px 8px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .focusTabBtn {
-    font-size: 0.74rem;
-    padding: 8px 8px;
+    min-height: 62px;
+    padding: 6px 3px;
+  }
+
+  .focusTabLabel {
+    font-size: 0.63rem;
   }
 
   .grid {
