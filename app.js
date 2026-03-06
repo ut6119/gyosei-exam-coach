@@ -129,6 +129,102 @@
     describe: "記述は『要件→当てはめ→結論』の順で、主語と法令名を省略しない。"
   };
 
+  const TOPIC_TEXTBOOK = {
+    admin: {
+      lead: "行政法は『誰が・いつまでに・何をするか』を先に固定してから解くと安定します。",
+      points: [
+        "主語を先に確認（行政庁/審査庁/裁判所）。",
+        "要件→効果→例外の順で整理する。",
+        "期限が出たら数字を先にチェックする。"
+      ],
+      tip: "主語→期限→例外"
+    },
+    civil: {
+      lead: "民法は条文の原則と例外をセットで覚えると、ひっかけに強くなります。",
+      points: [
+        "『原則は何か』を最初に言語化する。",
+        "例外が成立する条件を1つ添える。",
+        "用語の定義を短く言える状態にする。"
+      ],
+      tip: "原則→例外→定義"
+    },
+    const_basic: {
+      lead: "憲法・基礎法学は結論の暗記だけでなく、理由まで1文で言えるかが重要です。",
+      points: [
+        "論点ごとに『結論+理由』を1文で確認。",
+        "人権主体・制約目的・手段の順で見る。",
+        "判例は事案の違いまで意識する。"
+      ],
+      tip: "結論→理由→事案差"
+    },
+    commercial: {
+      lead: "商法・会社法は細かい数字や機関の権限を表で覚えるとミスが減ります。",
+      points: [
+        "機関の権限を混同しない。",
+        "数字・期限が出たら必ず復唱する。",
+        "例外規定を1つセットで記憶する。"
+      ],
+      tip: "機関→数字→例外"
+    },
+    general: {
+      lead: "基礎知識は知識問題を落とさないことが最優先です。",
+      points: [
+        "定義を短く言えるか確認する。",
+        "文章理解は設問先読みで情報を拾う。",
+        "更新されやすい分野は直前にも見直す。"
+      ],
+      tip: "定義→設問先読み→更新確認"
+    },
+    describe: {
+      lead: "記述は書く順番を固定すると得点が安定します。",
+      points: [
+        "要件→当てはめ→結論の順で書く。",
+        "主語と法令名を省略しない。",
+        "結論先行で要件漏れを起こさない。"
+      ],
+      tip: "要件→当てはめ→結論"
+    }
+  };
+
+  const CATEGORY_TEXTBOOK = {
+    major: {
+      lead: "まず『要件・効果・例外』の3点セットで確認してから問題に入ります。",
+      points: [
+        "主語（誰が行為主体か）を固定する。",
+        "要件と効果を分けて整理する。",
+        "例外条件を1つ補う。"
+      ],
+      tip: "主語→要件→例外"
+    },
+    minor: {
+      lead: "短時間で回すため、1問ごとに要点1つを確実に言語化します。",
+      points: [
+        "原則を先に確認する。",
+        "ひっかけ語尾を確認する。",
+        "間違えた論点を次回先頭で復習する。"
+      ],
+      tip: "原則→語尾→復習"
+    },
+    general: {
+      lead: "基礎知識は安定得点ゾーンです。定義と読解手順を先に確認します。",
+      points: [
+        "定義を短く言えるか確認する。",
+        "設問先読みで必要情報だけ拾う。",
+        "最新トピックは直前期に再確認する。"
+      ],
+      tip: "定義→先読み→再確認"
+    },
+    describe: {
+      lead: "記述は型を崩さないことが最重要です。",
+      points: [
+        "要件→当てはめ→結論の順で固定する。",
+        "主語と法令名を明示する。",
+        "結論だけ先に書かない。"
+      ],
+      tip: "型固定で失点回避"
+    }
+  };
+
   let mockTimerId = null;
 
   let state = loadState();
@@ -166,7 +262,9 @@
       correctCount: 0,
       wrongCount: 0,
       startedAt: "",
-      message: ""
+      message: "",
+      showExplanation: false,
+      primerReadTopicIds: []
     };
   }
 
@@ -287,6 +385,14 @@
     if (!Array.isArray(state.drill.queue)) {
       state.drill.queue = [];
     }
+    if (!Array.isArray(state.drill.primerReadTopicIds)) {
+      state.drill.primerReadTopicIds = [];
+    } else {
+      state.drill.primerReadTopicIds = state.drill.primerReadTopicIds
+        .map((id) => String(id || "").trim())
+        .filter(Boolean);
+    }
+    state.drill.showExplanation = Boolean(state.drill.showExplanation);
 
     if (!Array.isArray(state.mock.queue)) {
       state.mock.queue = [];
@@ -433,10 +539,13 @@
       renderAll();
     });
     byId("startDrillBtn").addEventListener("click", onStartDrill);
+    byId("drillPrimerDoneBtn").addEventListener("click", onDrillPrimerDone);
+    byId("revealAnswerBtn").addEventListener("click", onRevealDrillAnswer);
     byId("correctBtn").addEventListener("click", () => handleDrillAnswer(true));
     byId("incorrectBtn").addEventListener("click", () => handleDrillAnswer(false));
     byId("skipBtn").addEventListener("click", onSkipDrillQuestion);
     byId("editCurrentQuestionBtn").addEventListener("click", onEditCurrentQuestion);
+    byId("backToPrimerBtn").addEventListener("click", onBackToPrimer);
 
     byId("topicsTableWrap").addEventListener("click", onTopicsTableClick);
     byId("topicsTableWrap").addEventListener("change", onTopicsTableChange);
@@ -663,11 +772,76 @@
       correctCount: 0,
       wrongCount: 0,
       startedAt: today,
-      message: "ドリル開始。満点連続ルールで進行します。"
+      message: "ドリル開始。まず要点を確認してから問題を解きます。",
+      showExplanation: false,
+      primerReadTopicIds: []
     };
 
     saveState();
     renderAll();
+  }
+
+  function onDrillPrimerDone() {
+    if (!state.drill.active) {
+      return;
+    }
+
+    const current = getCurrentDrillQuestionContext();
+    if (!current) {
+      return;
+    }
+
+    if (!state.drill.primerReadTopicIds.includes(current.topic.id)) {
+      state.drill.primerReadTopicIds.push(current.topic.id);
+    }
+    state.drill.showExplanation = false;
+    state.drill.message = `${current.topic.name} の要点確認を完了。問題に進んでください。`;
+
+    saveState();
+    renderDrill();
+  }
+
+  function onRevealDrillAnswer() {
+    if (!state.drill.active) {
+      return;
+    }
+
+    const current = getCurrentDrillQuestionContext();
+    if (!current) {
+      return;
+    }
+
+    if (!state.drill.primerReadTopicIds.includes(current.topic.id)) {
+      state.drill.message = "先に要点チェックを完了してください。";
+      saveState();
+      renderDrill();
+      return;
+    }
+
+    state.drill.showExplanation = true;
+    state.drill.message = "解説を読んだら『できた/できない』で判定してください。";
+
+    saveState();
+    renderDrill();
+  }
+
+  function onBackToPrimer() {
+    if (!state.drill.active) {
+      return;
+    }
+
+    const current = getCurrentDrillQuestionContext();
+    if (!current) {
+      return;
+    }
+
+    state.drill.primerReadTopicIds = state.drill.primerReadTopicIds
+      .filter((topicId) => topicId !== current.topic.id);
+    state.drill.showExplanation = false;
+    state.drill.message = `${current.topic.name} の要点に戻りました。`;
+
+    saveState();
+    renderDrill();
   }
 
   function onSkipDrillQuestion() {
@@ -675,6 +849,7 @@
       return;
     }
 
+    state.drill.showExplanation = false;
     state.drill.pointer += 1;
     state.drill.message = "スキップしました。";
 
@@ -702,9 +877,29 @@
       return;
     }
 
+    const current = getCurrentDrillQuestionContext();
+    if (!current) {
+      return;
+    }
+
+    if (!state.drill.primerReadTopicIds.includes(current.topic.id)) {
+      state.drill.message = "先に要点チェックを完了してください。";
+      saveState();
+      renderDrill();
+      return;
+    }
+
+    if (!state.drill.showExplanation) {
+      state.drill.message = "先に『答えと解説を見る』を押してください。";
+      saveState();
+      renderDrill();
+      return;
+    }
+
     const topicId = state.drill.queue[state.drill.pointer];
     const topic = state.topics.find((item) => item.id === topicId);
     if (!topic) {
+      state.drill.showExplanation = false;
       state.drill.pointer += 1;
       finalizeDrillIfDone();
       saveState();
@@ -754,6 +949,7 @@
     }
 
     state.progress[topicId] = normalizeProgress(topic, progress);
+    state.drill.showExplanation = false;
     state.drill.pointer += 1;
 
     finalizeDrillIfDone();
@@ -771,6 +967,7 @@
       : 0;
 
     state.drill.active = false;
+    state.drill.showExplanation = false;
     state.drill.message = `本日のドリル終了: 正解 ${state.drill.correctCount} / 不正解 ${state.drill.wrongCount} / 正答率 ${correctRate}%`;
     state.todayPlan = { date: "", tasks: [] };
   }
@@ -1207,12 +1404,19 @@
   function renderDrill() {
     const idle = byId("drillIdle");
     const active = byId("drillActive");
+    const primerPanel = byId("drillPrimerPanel");
+    const questionPanel = byId("drillQuestionPanel");
+    const reviewPanel = byId("drillReviewPanel");
 
     if (!state.drill.active) {
       idle.classList.remove("hidden");
       active.classList.add("hidden");
       byId("drillMessage").textContent = state.drill.message || "";
+      byId("drillPrimerLead").textContent = "";
+      byId("drillPrimerList").innerHTML = "";
+      byId("drillPrimerTip").textContent = "";
       byId("drillPrompt").textContent = "";
+      byId("drillRule").textContent = "";
       byId("drillAnswerLine").textContent = "";
       byId("drillExplanationLine").textContent = "";
       byId("drillPitfallLine").textContent = "";
@@ -1230,19 +1434,60 @@
     }
 
     const detail = getQuestionDetail(current.topic.id, current.questionNo, false);
+    const textbook = getTopicTextbook(current.topic);
+    const needsPrimer = !state.drill.primerReadTopicIds.includes(current.topic.id);
 
     idle.classList.add("hidden");
     active.classList.remove("hidden");
 
     byId("drillProgress").textContent = `進捗: ${state.drill.pointer + 1} / ${state.drill.queue.length} 問`;
     byId("drillQuestion").textContent = `出題: ${current.topic.name} / Q${current.questionNo} / ${current.topic.total}`;
-    byId("drillPrompt").textContent = detail.prompt;
     byId("drillRule").textContent = `ルール: ${state.settings.targetPerfectRounds}回連続満点でクリア。不正解でQ1へ戻る。`;
-    byId("drillAnswerLine").textContent = `正答根拠: ${detail.answer}`;
-    byId("drillExplanationLine").textContent = `解説: ${detail.explanation}`;
-    byId("drillPitfallLine").textContent = `間違えやすい点: ${detail.pitfall}`;
-    byId("drillTermsLine").textContent = `関連用語: ${detail.terms.join(" / ")}`;
-    byId("drillMessage").textContent = state.drill.message || "";
+
+    if (needsPrimer) {
+      primerPanel.classList.remove("hidden");
+      questionPanel.classList.add("hidden");
+      reviewPanel.classList.add("hidden");
+
+      byId("drillPrimerLead").textContent = textbook.lead;
+      byId("drillPrimerList").innerHTML = textbook.points
+        .map((point) => `<li>${escapeHtml(point)}</li>`)
+        .join("");
+      byId("drillPrimerTip").textContent = `暗記フレーズ: ${textbook.tip}`;
+
+      byId("drillPrompt").textContent = "";
+      byId("drillAnswerLine").textContent = "";
+      byId("drillExplanationLine").textContent = "";
+      byId("drillPitfallLine").textContent = "";
+      byId("drillTermsLine").textContent = "";
+
+      byId("drillMessage").textContent = state.drill.message || "先に要点を読んでから問題に進んでください。";
+      return;
+    }
+
+    primerPanel.classList.add("hidden");
+    questionPanel.classList.remove("hidden");
+    byId("drillPrompt").textContent = detail.prompt;
+    byId("drillPrimerLead").textContent = "";
+    byId("drillPrimerList").innerHTML = "";
+    byId("drillPrimerTip").textContent = "";
+
+    if (state.drill.showExplanation) {
+      reviewPanel.classList.remove("hidden");
+      byId("drillAnswerLine").textContent = `正答根拠: ${detail.answer}`;
+      byId("drillExplanationLine").textContent = `解説: ${detail.explanation}`;
+      byId("drillPitfallLine").textContent = `間違えやすい点: ${detail.pitfall}`;
+      byId("drillTermsLine").textContent = `関連用語: ${detail.terms.join(" / ")}`;
+      byId("drillMessage").textContent = state.drill.message || "解説を読んだら、できた/できないを押してください。";
+      return;
+    }
+
+    reviewPanel.classList.add("hidden");
+    byId("drillAnswerLine").textContent = "";
+    byId("drillExplanationLine").textContent = "";
+    byId("drillPitfallLine").textContent = "";
+    byId("drillTermsLine").textContent = "";
+    byId("drillMessage").textContent = state.drill.message || "まず問題を考えてから『答えと解説を見る』を押してください。";
   }
 
   function renderQuestionEditor() {
@@ -1488,12 +1733,41 @@
       : defaultTermsForTopic(topic);
 
     return {
-      prompt: source.prompt || `${topic.name} Q${questionNo}: この論点の要件・効果・例外を説明してください。`,
+      prompt: source.prompt || buildAutoPrompt(topic, questionNo),
       answer: source.answer || "条文の根拠 + 判例結論 + 例外条件を1行で言えること。",
       explanation: source.explanation || GENERIC_EXPLANATION[categoryKey],
       pitfall: source.pitfall || "主語・語尾・期限の取り違いに注意。",
       terms
     };
+  }
+
+  function getTopicTextbook(topic) {
+    const topicText = TOPIC_TEXTBOOK[topic.id];
+    if (topicText) {
+      return topicText;
+    }
+
+    const categoryKey = CATEGORY_TEXTBOOK[topic.category] ? topic.category : "minor";
+    return CATEGORY_TEXTBOOK[categoryKey];
+  }
+
+  function buildAutoPrompt(topic, questionNo) {
+    const textbook = getTopicTextbook(topic);
+    const points = Array.isArray(textbook.points) && textbook.points.length > 0
+      ? textbook.points
+      : ["要件を確認する。", "効果を確認する。", "例外を確認する。"];
+
+    const pattern = questionNo % 4;
+    if (pattern === 1) {
+      return `【問題】${topic.name} Q${questionNo}\n「${points[0]}」を自分の言葉で1行で説明してください。`;
+    }
+    if (pattern === 2) {
+      return `【問題】${topic.name} Q${questionNo}\nこの論点の原則と例外を1つずつ挙げてください。`;
+    }
+    if (pattern === 3) {
+      return `【問題】${topic.name} Q${questionNo}\n「${points[1]}」を意識して、結論まで30秒で説明してください。`;
+    }
+    return `【問題】${topic.name} Q${questionNo}\n${textbook.tip} を使って要点を3つ言ってください。`;
   }
 
   function defaultTermsForTopic(topic) {

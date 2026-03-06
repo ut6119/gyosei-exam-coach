@@ -76,21 +76,43 @@
 
       <section class="card" id="drillCard">
         <h2>5. 反復ドリル</h2>
-        <div id="drillIdle">ドリル開始を押すと、ここに出題されます。</div>
+        <p class="note">流れ: 要点を読む → 問題を解く → 解説を見る → できた/できないを押す</p>
+        <div id="drillIdle">ドリル開始を押すと、ここに出題されます（編集なしでOK）。</div>
         <div id="drillActive" class="hidden">
           <p id="drillProgress"></p>
           <p id="drillQuestion" class="questionHead"></p>
-          <p id="drillPrompt" class="questionBox"></p>
-          <p id="drillRule"></p>
-          <p id="drillAnswerLine" class="note"></p>
-          <p id="drillExplanationLine" class="note"></p>
-          <p id="drillPitfallLine" class="note"></p>
-          <p id="drillTermsLine" class="note"></p>
+
+          <div id="drillPrimerPanel" class="questionBox hidden">
+            <p class="questionHead">先に要点チェック（30秒）</p>
+            <p id="drillPrimerLead"></p>
+            <ul id="drillPrimerList" class="checkList"></ul>
+            <p id="drillPrimerTip" class="note"></p>
+            <button id="drillPrimerDoneBtn" type="button">要点を読んだので問題へ</button>
+          </div>
+
+          <div id="drillQuestionPanel" class="hidden">
+            <p id="drillPrompt" class="questionBox"></p>
+            <p id="drillRule"></p>
+            <div class="row">
+              <button id="revealAnswerBtn" type="button">答えと解説を見る</button>
+              <button id="skipBtn" type="button">スキップ</button>
+              <button id="editCurrentQuestionBtn" type="button">この問を編集</button>
+            </div>
+          </div>
+
+          <div id="drillReviewPanel" class="questionBox hidden">
+            <p id="drillAnswerLine" class="note"></p>
+            <p id="drillExplanationLine" class="note"></p>
+            <p id="drillPitfallLine" class="note"></p>
+            <p id="drillTermsLine" class="note"></p>
+            <div class="row">
+              <button id="correctBtn" type="button" class="ok">できた（正解）</button>
+              <button id="incorrectBtn" type="button" class="ng">できない（最初へ）</button>
+            </div>
+          </div>
+
           <div class="row">
-            <button id="correctBtn" type="button" class="ok">正解</button>
-            <button id="incorrectBtn" type="button" class="ng">不正解（最初へ）</button>
-            <button id="skipBtn" type="button">スキップ</button>
-            <button id="editCurrentQuestionBtn" type="button">この問を編集</button>
+            <button id="backToPrimerBtn" type="button">要点をもう一度見る</button>
           </div>
         </div>
         <p id="drillMessage" class="note"></p>

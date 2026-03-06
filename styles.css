@@ -195,6 +195,20 @@ button.ng {
   white-space: pre-wrap;
 }
 
+#drillPrimerPanel,
+#drillReviewPanel {
+  background: #f8fbff;
+}
+
+#drillPrimerPanel .checkList {
+  margin-top: 6px;
+}
+
+#drillQuestionPanel .row button,
+#drillReviewPanel .row button {
+  flex: 1 1 150px;
+}
+
 .table {
   width: 100%;
   border-collapse: collapse;
