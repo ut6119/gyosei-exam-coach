@@ -19,16 +19,17 @@
         <div id="homeNavGrid" class="homeNavGrid">
           <button type="button" class="homeNavBtn" data-target="dashboardCard"><span class="homeNum">1</span><span>本番カウント</span></button>
           <button type="button" class="homeNavBtn" data-target="settingsCard"><span class="homeNum">2</span><span>学習設定</span></button>
-          <button type="button" class="homeNavBtn" data-target="topicsCard"><span class="homeNum">3</span><span>問題セット</span></button>
+          <button type="button" class="homeNavBtn" data-target="problemMenuCard"><span class="homeNum">3</span><span>問題メニュー</span></button>
           <button type="button" class="homeNavBtn" data-target="todayPlanCard"><span class="homeNum">4</span><span>今日のプラン</span></button>
           <button type="button" class="homeNavBtn" data-target="drillCard"><span class="homeNum">5</span><span>反復ドリル</span></button>
           <button type="button" class="homeNavBtn" data-target="miniTestCard"><span class="homeNum">6</span><span>小テスト</span></button>
-          <button type="button" class="homeNavBtn" data-target="questionEditorCard"><span class="homeNum">7</span><span>問題編集</span></button>
-          <button type="button" class="homeNavBtn" data-target="mockExamCard"><span class="homeNum">8</span><span>模試</span></button>
-          <button type="button" class="homeNavBtn" data-target="glossaryCard"><span class="homeNum">9</span><span>用語集</span></button>
-          <button type="button" class="homeNavBtn" data-target="pitfallsCard"><span class="homeNum">10</span><span>ミス傾向</span></button>
-          <button type="button" class="homeNavBtn" data-target="curriculumCard"><span class="homeNum">11</span><span>カリキュラム</span></button>
-          <button type="button" class="homeNavBtn" data-target="researchCard"><span class="homeNum">12</span><span>出典</span></button>
+          <button type="button" class="homeNavBtn" data-target="mockExamCard"><span class="homeNum">7</span><span>模試</span></button>
+          <button type="button" class="homeNavBtn" data-target="glossaryCard"><span class="homeNum">8</span><span>用語集</span></button>
+          <button type="button" class="homeNavBtn" data-target="pitfallsCard"><span class="homeNum">9</span><span>ミス傾向</span></button>
+          <button type="button" class="homeNavBtn" data-target="curriculumCard"><span class="homeNum">10</span><span>カリキュラム</span></button>
+          <button type="button" class="homeNavBtn" data-target="researchCard"><span class="homeNum">11</span><span>出典</span></button>
+          <button type="button" class="homeNavBtn" data-target="topicsCard"><span class="homeNum">12</span><span>問題セット</span></button>
+          <button type="button" class="homeNavBtn" data-target="questionEditorCard"><span class="homeNum">13</span><span>問題編集</span></button>
         </div>
       </section>
 
@@ -74,8 +75,19 @@
         <button id="saveSettingsBtn" type="button">設定を保存</button>
       </section>
 
+      <section class="card" id="problemMenuCard">
+        <h2>3. 問題メニュー</h2>
+        <p class="note">セクション名・問題数・小テストタイミングを確認し、Q番号を押すとその1問だけ演習できます。</p>
+        <div class="row">
+          <label for="problemMenuTopicSelect">分野</label>
+          <select id="problemMenuTopicSelect"></select>
+        </div>
+        <div id="problemMenuSummary" class="summaryBox"></div>
+        <div id="problemMenuList" class="sectionMenuList"></div>
+      </section>
+
       <section class="card" id="topicsCard">
-        <h2>3. 問題セット管理</h2>
+        <h2>12. 問題セット管理</h2>
         <p class="note">問題文そのものは著作権の関係で含めず、セット名と問題数で進捗管理します。</p>
         <p class="note">各セットは自動でセクション分割され、5セクションクリアごとに小テストを挟みます。</p>
         <div class="row compact">
@@ -92,12 +104,34 @@
           <button id="generatePlanBtn" type="button">今日のプランを再計算</button>
           <button id="startDrillBtn" type="button">ドリル開始</button>
         </div>
+        <div class="progressWrap">
+          <div class="progressMeta">
+            <span>今日のプラン進捗</span>
+            <span id="todayPlanGaugeLabel">0/0 (0%)</span>
+          </div>
+          <div class="progressTrack">
+            <div id="todayPlanGaugeFill" class="progressFill"></div>
+          </div>
+        </div>
+        <div id="todayPreviewPanel" class="summaryBox">
+          <p class="questionHead">今日の予習（要点チェック）</p>
+          <div id="todayPreviewList"></div>
+        </div>
         <ul id="todayPlanList" class="checkList"></ul>
       </section>
 
       <section class="card" id="drillCard">
         <h2>5. 反復ドリル</h2>
         <p class="note">流れ: 要点を読む → 3択を選ぶ → 解説を見る → 次の問題へ</p>
+        <div class="progressWrap">
+          <div class="progressMeta">
+            <span>ドリル進捗</span>
+            <span id="drillGaugeLabel">未開始</span>
+          </div>
+          <div class="progressTrack">
+            <div id="drillGaugeFill" class="progressFill"></div>
+          </div>
+        </div>
         <div id="drillIdle">ドリル開始を押すと、ここに出題されます（編集なしでOK）。</div>
         <div id="drillActive" class="hidden">
           <p id="drillProgress"></p>
@@ -156,7 +190,7 @@
       </section>
 
       <section class="card" id="questionEditorCard">
-        <h2>7. 問題と解説の登録</h2>
+        <h2>13. 問題と解説の登録</h2>
         <p class="note">各問いに「問題文・正答根拠・解説・間違えやすい点・関連用語」を保存できます。</p>
         <div class="row">
           <label for="questionTopicSelect">分野</label>
@@ -210,7 +244,7 @@
       </section>
 
       <section class="card" id="mockExamCard">
-        <h2>8. 本番想定 模試モード</h2>
+        <h2>7. 本番想定 模試モード</h2>
         <p class="note" id="mockExamSpec"></p>
         <div class="row">
           <button id="startMockBtn" type="button">180分模試を開始</button>
@@ -232,7 +266,7 @@
       </section>
 
       <section class="card" id="glossaryCard">
-        <h2>9. 専門用語集</h2>
+        <h2>8. 専門用語集</h2>
         <div class="row">
           <input id="glossarySearchInput" type="text" placeholder="用語検索" />
         </div>
@@ -246,17 +280,27 @@
       </section>
 
       <section class="card" id="pitfallsCard">
-        <h2>10. 間違えやすいポイント</h2>
+        <h2>9. 間違えやすいポイント</h2>
         <ul id="pitfallList" class="checkList"></ul>
       </section>
 
       <section class="card" id="curriculumCard">
-        <h2>11. 本番逆算カリキュラム</h2>
+        <h2>10. 本番逆算カリキュラム</h2>
+        <div class="progressWrap">
+          <div class="progressMeta">
+            <span>全体進捗（セクション）</span>
+            <span id="curriculumGaugeLabel">0/0 (0%)</span>
+          </div>
+          <div class="progressTrack">
+            <div id="curriculumGaugeFill" class="progressFill"></div>
+          </div>
+        </div>
+        <p id="curriculumGaugeNote" class="note"></p>
         <ul id="curriculumList" class="checkList"></ul>
       </section>
 
       <section class="card" id="researchCard">
-        <h2>12. 調査ベース学習原則</h2>
+        <h2>11. 調査ベース学習原則</h2>
         <ul id="researchList" class="linkList"></ul>
         <p class="note">出典更新日: <span id="researchUpdatedAt"></span></p>
       </section>

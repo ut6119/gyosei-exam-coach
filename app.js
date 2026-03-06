@@ -815,7 +815,11 @@
       showExplanation: false,
       primerReadTopicIds: [],
       selectedChoice: -1,
-      pendingResult: null
+      pendingResult: null,
+      singleMode: false,
+      singleTopicId: "",
+      singleQuestionNo: 1,
+      singleSectionName: ""
     };
   }
 
@@ -977,6 +981,21 @@
     }
     if (typeof state.drill.pendingResult !== "boolean") {
       state.drill.pendingResult = null;
+    }
+    state.drill.singleMode = Boolean(state.drill.singleMode);
+    state.drill.singleTopicId = String(state.drill.singleTopicId || "");
+    state.drill.singleQuestionNo = Math.max(1, Math.round(Number(state.drill.singleQuestionNo) || 1));
+    state.drill.singleSectionName = String(state.drill.singleSectionName || "");
+    if (state.drill.singleMode) {
+      const singleTopic = state.topics.find((topic) => topic.id === state.drill.singleTopicId);
+      if (!singleTopic) {
+        state.drill.singleMode = false;
+        state.drill.singleTopicId = "";
+        state.drill.singleQuestionNo = 1;
+        state.drill.singleSectionName = "";
+      } else {
+        state.drill.singleQuestionNo = clampQuestionNo(singleTopic.id, state.drill.singleQuestionNo);
+      }
     }
 
     if (!Array.isArray(state.mock.queue)) {
@@ -1163,6 +1182,8 @@
     byId("saveExamDateBtn").addEventListener("click", onSaveExamDate);
     byId("saveSettingsBtn").addEventListener("click", onSaveSettings);
     byId("addTopicBtn").addEventListener("click", onAddTopic);
+    byId("problemMenuTopicSelect").addEventListener("change", renderProblemMenu);
+    byId("problemMenuList").addEventListener("click", onProblemMenuListClick);
     byId("generatePlanBtn").addEventListener("click", () => {
       generateTodayPlan(true);
       renderAll();
@@ -1399,6 +1420,65 @@
     }
   }
 
+  function onProblemMenuListClick(event) {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+    const button = target.closest("button[data-action]");
+    if (!(button instanceof HTMLButtonElement)) {
+      return;
+    }
+
+    const action = button.dataset.action;
+    if (action !== "single") {
+      return;
+    }
+
+    const topicId = String(button.dataset.topicId || "");
+    const questionNo = Number(button.dataset.questionNo);
+    const sectionName = String(button.dataset.sectionName || "");
+
+    if (!topicId || !Number.isInteger(questionNo)) {
+      return;
+    }
+
+    startSingleQuestionDrill(topicId, questionNo, sectionName);
+  }
+
+  function startSingleQuestionDrill(topicId, questionNo, sectionName) {
+    const topic = state.topics.find((item) => item.id === topicId);
+    if (!topic) {
+      return;
+    }
+    if (state.mock.active) {
+      alert("模試が進行中です。先に模試を終了してください。");
+      return;
+    }
+    if (state.miniTest.active) {
+      alert("小テストが進行中です。先に小テストを終了してください。");
+      return;
+    }
+
+    const safeQuestionNo = clampQuestionNo(topic.id, questionNo);
+    state.drill = {
+      ...defaultDrill(),
+      active: true,
+      queue: [topic.id],
+      pointer: 0,
+      startedAt: todayISO(),
+      message: `${topic.name} Q${safeQuestionNo} の単問演習を開始。要点→問題→解説の順で進めます。`,
+      singleMode: true,
+      singleTopicId: topic.id,
+      singleQuestionNo: safeQuestionNo,
+      singleSectionName: sectionName || ""
+    };
+
+    saveState();
+    renderAll();
+    byId("drillCard").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   function onStartDrill() {
     if (state.mock.active) {
       alert("模試が進行中です。先に模試を終了してください。");
@@ -1446,7 +1526,11 @@
       showExplanation: false,
       primerReadTopicIds: [],
       selectedChoice: -1,
-      pendingResult: null
+      pendingResult: null,
+      singleMode: false,
+      singleTopicId: "",
+      singleQuestionNo: 1,
+      singleSectionName: ""
     };
 
     saveState();
@@ -1620,12 +1704,37 @@
     }
 
     const progress = state.progress[topicId] || defaultProgress();
-    const questionNo = progress.nextQuestion;
+    const questionNo = current.questionNo;
     const currentSection = getCurrentSection(topic, questionNo);
     const sectionLength = Math.max(1, currentSection.end - currentSection.start + 1);
 
     progress.attempts += 1;
     progress.lastStudied = todayISO();
+
+    if (state.drill.singleMode) {
+      if (isCorrect) {
+        progress.correct += 1;
+        state.drill.correctCount += 1;
+        state.drill.message = `${topic.name} Q${questionNo}: 正解。単問演習を完了しました。`;
+      } else {
+        progress.mistakes += 1;
+        state.drill.wrongCount += 1;
+        const heatKey = `${topicId}:${questionNo}`;
+        state.pitfallHeatmap[heatKey] = (state.pitfallHeatmap[heatKey] || 0) + 1;
+        state.drill.message = `${topic.name} Q${questionNo}: 不正解。解説を見直して再チャレンジしてください。`;
+      }
+
+      state.progress[topicId] = normalizeProgress(topic, progress);
+      state.drill.showExplanation = false;
+      state.drill.selectedChoice = -1;
+      state.drill.pendingResult = null;
+      state.drill.pointer += 1;
+
+      finalizeDrillIfDone();
+      saveState();
+      renderAll();
+      return;
+    }
 
     if (isCorrect) {
       progress.correct += 1;
@@ -1700,6 +1809,15 @@
     state.drill.showExplanation = false;
     state.drill.selectedChoice = -1;
     state.drill.pendingResult = null;
+    if (state.drill.singleMode) {
+      const topic = state.topics.find((item) => item.id === state.drill.singleTopicId);
+      const label = topic
+        ? `${topic.name} Q${state.drill.singleQuestionNo}`
+        : "単問演習";
+      state.drill.message = `${label} 終了: 正解 ${state.drill.correctCount} / 不正解 ${state.drill.wrongCount} / 正答率 ${correctRate}%`;
+      return;
+    }
+
     state.drill.message = `本日のドリル終了: 正解 ${state.drill.correctCount} / 不正解 ${state.drill.wrongCount} / 正答率 ${correctRate}%`;
     if (state.trainingCycle.pendingMiniTest) {
       state.drill.message += " / 次は小テストを実施してください。";
@@ -2240,6 +2358,7 @@
 
     renderDashboard();
     renderSettings();
+    renderProblemMenu();
     renderTopics();
     renderTodayPlan();
     renderDrill();
@@ -2341,6 +2460,103 @@
     `;
   }
 
+  function renderProblemMenu() {
+    const select = byId("problemMenuTopicSelect");
+    const summary = byId("problemMenuSummary");
+    const list = byId("problemMenuList");
+    const previousTopicId = select.value;
+
+    select.innerHTML = state.topics
+      .map((topic) => `<option value="${escapeAttr(topic.id)}">${escapeHtml(topic.name)}</option>`)
+      .join("");
+
+    if (state.topics.length === 0) {
+      summary.innerHTML = "<p class=\"note\">問題セットを追加すると問題メニューが表示されます。</p>";
+      list.innerHTML = "";
+      return;
+    }
+
+    const selectedTopicId = state.topics.some((topic) => topic.id === previousTopicId)
+      ? previousTopicId
+      : state.topics[0].id;
+    select.value = selectedTopicId;
+
+    const topic = state.topics.find((item) => item.id === selectedTopicId);
+    if (!topic) {
+      summary.innerHTML = "<p class=\"note\">分野の読み込みに失敗しました。</p>";
+      list.innerHTML = "";
+      return;
+    }
+
+    const progress = state.progress[topic.id] || defaultProgress();
+    const sections = getTopicSections(topic);
+    const totalSections = sections.length;
+    const clearedSections = Math.min(totalSections, progress.sectionClears);
+    const currentSection = getCurrentSection(topic, progress.nextQuestion);
+    const miniLeft = Math.max(0, SECTION_CLEAR_TARGET - state.trainingCycle.sectionClearsSinceMiniTest);
+    const stars = `${"★".repeat(clearedSections)}${"☆".repeat(Math.max(0, totalSections - clearedSections))}`;
+    const sectionGaugePercent = totalSections > 0
+      ? Math.round((clearedSections / totalSections) * 100)
+      : 0;
+    const cycleNote = state.trainingCycle.pendingMiniTest
+      ? "現在は小テスト待ち（5セクションクリア達成）。"
+      : `現在の小テストまで: あと${miniLeft}セクション。`;
+
+    summary.innerHTML = `
+      <p class="note">総問題数 ${topic.total}問 / 総セクション ${totalSections} / クリア ${clearedSections}</p>
+      <p class="note">進捗スター: ${stars}</p>
+      <div class="progressWrap compactGauge">
+        <div class="progressMeta">
+          <span>${escapeHtml(topic.name)} の進捗</span>
+          <span>${clearedSections}/${totalSections} (${sectionGaugePercent}%)</span>
+        </div>
+        <div class="progressTrack"><div class="progressFill" style="width: ${sectionGaugePercent}%"></div></div>
+      </div>
+      <p class="note">${cycleNote}</p>
+    `;
+
+    list.innerHTML = sections
+      .map((section) => {
+        const count = section.end - section.start + 1;
+        const isCleared = section.index < clearedSections;
+        const isCurrent = !progress.mastered && section.index === currentSection.index;
+        const miniHint = state.trainingCycle.pendingMiniTest
+          ? "先に小テストを実施"
+          : isCleared
+            ? "クリア済み"
+            : isCurrent
+              ? `クリアで小テストまであと${Math.max(0, miniLeft - 1)}`
+              : `小テストまであと${miniLeft}`;
+        const chips = [];
+        for (let questionNo = section.start; questionNo <= section.end; questionNo += 1) {
+          chips.push(`
+            <button
+              type="button"
+              class="questionChip"
+              data-action="single"
+              data-topic-id="${escapeAttr(topic.id)}"
+              data-question-no="${questionNo}"
+              data-section-name="${escapeAttr(section.name)}"
+            >Q${questionNo}</button>
+          `);
+        }
+
+        return `
+          <article class="sectionItem ${isCurrent ? "current" : ""}">
+            <div class="sectionItemHead">
+              <p class="sectionTitle">
+                <span class="sectionStar ${isCleared ? "done" : "todo"}">${isCleared ? "★" : "☆"}</span>
+                ${escapeHtml(section.name)}
+              </p>
+              <p class="sectionMeta">Q${section.start}-${section.end} / ${count}問 / ${miniHint}</p>
+            </div>
+            <div class="questionChipWrap">${chips.join("")}</div>
+          </article>
+        `;
+      })
+      .join("");
+  }
+
   function renderTodayPlan() {
     const today = todayISO();
     if (state.todayPlan.date !== today || state.todayPlan.tasks.length === 0) {
@@ -2348,14 +2564,55 @@
     }
 
     const list = byId("todayPlanList");
+    const preview = byId("todayPreviewList");
     list.innerHTML = "";
+    preview.innerHTML = "";
+
+    const plannedCount = state.todayPlan.tasks.reduce((sum, task) => sum + Math.max(0, Number(task.count) || 0), 0);
+    let doneCount = 0;
+    if (state.drill.startedAt === today && state.drill.queue.length > 0) {
+      doneCount = Math.min(state.drill.pointer, state.drill.queue.length);
+    }
 
     if (state.todayPlan.tasks.length === 0) {
       const li = document.createElement("li");
       li.textContent = "全セットをクリア済み。模試または記述式の再演習を実施。";
       list.appendChild(li);
+      preview.innerHTML = "<p class=\"note\">予習: 模試の見直し用に、間違えやすいポイントを3つ読み返してください。</p>";
+      setGauge("todayPlanGaugeFill", "todayPlanGaugeLabel", 1, 1, "完了");
       return;
     }
+
+    setGauge("todayPlanGaugeFill", "todayPlanGaugeLabel", doneCount, plannedCount, "0%");
+
+    const previewTopicIds = [];
+    for (const task of state.todayPlan.tasks) {
+      if (!previewTopicIds.includes(task.topicId)) {
+        previewTopicIds.push(task.topicId);
+      }
+      if (previewTopicIds.length >= 3) {
+        break;
+      }
+    }
+
+    preview.innerHTML = previewTopicIds
+      .map((topicId) => {
+        const topic = state.topics.find((item) => item.id === topicId);
+        if (!topic) {
+          return "";
+        }
+        const textbook = getTopicTextbook(topic);
+        return `
+          <article class="previewItem">
+            <p class="previewTitle">${escapeHtml(topic.name)} の予習</p>
+            <p class="note">${escapeHtml(textbook.lead)}</p>
+            <ul class="checkList compactList">
+              ${textbook.points.map((point) => `<li>${escapeHtml(point)}</li>`).join("")}
+            </ul>
+          </article>
+        `;
+      })
+      .join("");
 
     for (const task of state.todayPlan.tasks) {
       const topic = state.topics.find((item) => item.id === task.topicId);
@@ -2380,6 +2637,17 @@
     const nextBtn = byId("applyReviewResultBtn");
     const skipBtn = byId("skipBtn");
     const editBtn = byId("editCurrentQuestionBtn");
+    const today = todayISO();
+    const doneCount = state.drill.queue.length > 0
+      ? Math.min(state.drill.pointer, state.drill.queue.length)
+      : 0;
+    if (state.drill.active) {
+      setGauge("drillGaugeFill", "drillGaugeLabel", doneCount, state.drill.queue.length, "0%");
+    } else if (state.drill.startedAt === today && state.drill.queue.length > 0) {
+      setGauge("drillGaugeFill", "drillGaugeLabel", doneCount, state.drill.queue.length, "0%");
+    } else {
+      setGauge("drillGaugeFill", "drillGaugeLabel", 0, 0, "未開始");
+    }
 
     if (!state.drill.active) {
       idle.classList.remove("hidden");
@@ -2391,6 +2659,8 @@
       byId("drillPrimerLead").textContent = "";
       byId("drillPrimerList").innerHTML = "";
       byId("drillPrimerTip").textContent = "";
+      byId("drillProgress").textContent = "";
+      byId("drillQuestion").textContent = "";
       byId("drillPrompt").textContent = "";
       choicesWrap.innerHTML = "";
       byId("drillRule").textContent = "";
@@ -2420,10 +2690,16 @@
     idle.classList.add("hidden");
     active.classList.remove("hidden");
 
-    byId("drillProgress").textContent = `進捗: ${state.drill.pointer + 1} / ${state.drill.queue.length} 問`;
     const section = getCurrentSection(current.topic, current.questionNo);
-    byId("drillQuestion").textContent = `出題: ${current.topic.name} / ${section.name} / Q${current.questionNo} (${section.start}-${section.end})`;
-    byId("drillRule").textContent = `ルール: 各セクションを${state.settings.targetPerfectRounds}回連続満点でクリア。不正解でそのセクション先頭へ戻る。`;
+    if (state.drill.singleMode) {
+      byId("drillProgress").textContent = `進捗: ${Math.min(state.drill.pointer + 1, state.drill.queue.length)}/${state.drill.queue.length}（単問）`;
+      byId("drillQuestion").textContent = `出題: ${current.topic.name} / ${section.name} / Q${current.questionNo}`;
+      byId("drillRule").textContent = "ルール: 単問モード。要点確認後にこの1問だけ解いて終了します。";
+    } else {
+      byId("drillProgress").textContent = `進捗: ${state.drill.pointer + 1} / ${state.drill.queue.length} 問`;
+      byId("drillQuestion").textContent = `出題: ${current.topic.name} / ${section.name} / Q${current.questionNo} (${section.start}-${section.end})`;
+      byId("drillRule").textContent = `ルール: 各セクションを${state.settings.targetPerfectRounds}回連続満点でクリア。不正解でそのセクション先頭へ戻る。`;
+    }
 
     if (needsPrimer) {
       primerPanel.classList.remove("hidden");
@@ -2711,6 +2987,17 @@
     const list = byId("curriculumList");
     list.innerHTML = "";
 
+    const totalSections = state.topics.reduce((sum, topic) => sum + getTopicSections(topic).length, 0);
+    const clearedSections = state.topics.reduce((sum, topic) => {
+      const progress = state.progress[topic.id] || defaultProgress();
+      return sum + Math.min(getTopicSections(topic).length, progress.sectionClears);
+    }, 0);
+    const completeDaysLeft = getDaysUntilCompleteDate();
+    setGauge("curriculumGaugeFill", "curriculumGaugeLabel", clearedSections, totalSections, "0%");
+    byId("curriculumGaugeNote").textContent = completeDaysLeft >= 0
+      ? `仕上げ期限まであと${completeDaysLeft}日。小テストは5セクションクリアごとに実施。`
+      : `仕上げ期限を過ぎています（${Math.abs(completeDaysLeft)}日超過）。弱点優先で圧縮学習してください。`;
+
     const items = buildCurriculumItems();
     for (const item of items) {
       const li = document.createElement("li");
@@ -2799,6 +3086,17 @@
   function getCurrentDrillQuestionContext() {
     if (!state.drill.active) {
       return null;
+    }
+
+    if (state.drill.singleMode) {
+      const topic = state.topics.find((item) => item.id === state.drill.singleTopicId);
+      if (!topic) {
+        return null;
+      }
+      return {
+        topic,
+        questionNo: clampQuestionNo(topic.id, state.drill.singleQuestionNo)
+      };
     }
 
     const topicId = state.drill.queue[state.drill.pointer];
@@ -3305,6 +3603,25 @@
       return max;
     }
     return Math.round(num);
+  }
+
+  function setGauge(fillId, labelId, done, total, emptyText) {
+    const fill = byId(fillId);
+    const label = byId(labelId);
+    const safeDone = Math.max(0, Math.round(Number(done) || 0));
+    const safeTotal = Math.max(0, Math.round(Number(total) || 0));
+
+    if (safeTotal <= 0) {
+      fill.style.width = "0%";
+      label.textContent = emptyText || "0/0 (0%)";
+      return 0;
+    }
+
+    const boundedDone = Math.min(safeDone, safeTotal);
+    const percent = Math.round((boundedDone / safeTotal) * 100);
+    fill.style.width = `${percent}%`;
+    label.textContent = `${boundedDone}/${safeTotal} (${percent}%)`;
+    return percent;
   }
 
   function escapeHtml(value) {
