@@ -310,16 +310,23 @@ button.ng {
 
 #drillExplanationAccordion {
   background: #f8fbff;
+  white-space: normal;
+  padding: 6px 8px;
 }
 
 #drillExplanationAccordion summary {
   cursor: pointer;
   font-weight: 700;
+  margin-bottom: 4px;
 }
 
 #drillExplanationAccordion .note {
-  margin: 2px 0;
-  line-height: 1.25;
+  margin: 0 0 0.6em;
+  line-height: 1.2;
+}
+
+#drillExplanationAccordion .note:last-child {
+  margin-bottom: 0;
 }
 
 .choiceList {
