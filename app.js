@@ -1310,7 +1310,7 @@
 
   function onFocusTabClick(event) {
     const target = event.target;
-    if (!(target instanceof HTMLElement)) {
+    if (!(target instanceof Element)) {
       return;
     }
     const button = target.closest("button[data-tab]");
@@ -1318,7 +1318,7 @@
       return;
     }
     const tabKey = normalizeFocusTab(button.dataset.tab);
-    setFocusTab(tabKey, { save: true, scroll: true });
+    setFocusTab(tabKey, { save: false, scroll: true });
   }
 
   function normalizeFocusTab(tabKey) {

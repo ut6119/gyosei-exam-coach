@@ -83,6 +83,9 @@ body {
   align-items: center;
   justify-content: center;
   gap: 3px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
 }
 
 .focusTabBtn:first-child {
