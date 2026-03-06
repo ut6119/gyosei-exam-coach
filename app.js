@@ -813,7 +813,6 @@
       startedAt: "",
       message: "",
       showExplanation: false,
-      primerReadTopicIds: [],
       selectedChoice: -1,
       pendingResult: null,
       singleMode: false,
@@ -888,6 +887,10 @@
       mock: defaultMock(),
       miniTest: defaultMiniTest(),
       trainingCycle: defaultTrainingCycle(),
+      primerView: {
+        topicId: topics[0].id,
+        sectionIndex: 0
+      },
       questionEditor: {
         topicId: topics[0].id,
         questionNo: 1,
@@ -940,6 +943,9 @@
     state.trainingCycle = state.trainingCycle && typeof state.trainingCycle === "object"
       ? state.trainingCycle
       : defaultTrainingCycle();
+    state.primerView = state.primerView && typeof state.primerView === "object"
+      ? state.primerView
+      : fresh.primerView;
     state.questionEditor = state.questionEditor && typeof state.questionEditor === "object"
       ? state.questionEditor
       : fresh.questionEditor;
@@ -964,13 +970,6 @@
 
     if (!Array.isArray(state.drill.queue)) {
       state.drill.queue = [];
-    }
-    if (!Array.isArray(state.drill.primerReadTopicIds)) {
-      state.drill.primerReadTopicIds = [];
-    } else {
-      state.drill.primerReadTopicIds = state.drill.primerReadTopicIds
-        .map((id) => String(id || "").trim())
-        .filter(Boolean);
     }
     state.drill.showExplanation = Boolean(state.drill.showExplanation);
     state.drill.selectedChoice = Number.isInteger(state.drill.selectedChoice)
@@ -1046,6 +1045,20 @@
     for (const topicId of Object.keys(state.questionBank)) {
       if (!existingTopicIds.has(topicId)) {
         delete state.questionBank[topicId];
+      }
+    }
+
+    state.primerView.topicId = String(state.primerView.topicId || "");
+    state.primerView.sectionIndex = Math.max(0, Math.round(Number(state.primerView.sectionIndex) || 0));
+    if (!existingTopicIds.has(state.primerView.topicId)) {
+      state.primerView.topicId = state.topics[0].id;
+      state.primerView.sectionIndex = 0;
+    }
+    const primerTopic = state.topics.find((topic) => topic.id === state.primerView.topicId);
+    if (primerTopic) {
+      const maxSectionIndex = Math.max(0, getTopicSections(primerTopic).length - 1);
+      if (state.primerView.sectionIndex > maxSectionIndex) {
+        state.primerView.sectionIndex = maxSectionIndex;
       }
     }
 
@@ -1187,13 +1200,16 @@
       generateTodayPlan(true);
       renderAll();
     });
+    byId("todayPreviewList").addEventListener("click", onTodayPreviewClick);
+    byId("primerTopicSelect").addEventListener("change", onPrimerTopicChange);
+    byId("primerSectionSelect").addEventListener("change", onPrimerSectionChange);
+    byId("primerPrevSectionBtn").addEventListener("click", onPrimerPrevSection);
+    byId("primerNextSectionBtn").addEventListener("click", onPrimerNextSection);
     byId("startDrillBtn").addEventListener("click", onStartDrill);
-    byId("drillPrimerDoneBtn").addEventListener("click", onDrillPrimerDone);
     byId("drillChoicesWrap").addEventListener("click", onDrillChoiceClick);
     byId("applyReviewResultBtn").addEventListener("click", onApplyReviewResult);
     byId("skipBtn").addEventListener("click", onSkipDrillQuestion);
     byId("editCurrentQuestionBtn").addEventListener("click", onEditCurrentQuestion);
-    byId("backToPrimerBtn").addEventListener("click", onBackToPrimer);
 
     byId("topicsTableWrap").addEventListener("click", onTopicsTableClick);
     byId("topicsTableWrap").addEventListener("change", onTopicsTableChange);
@@ -1466,7 +1482,7 @@
       queue: [topic.id],
       pointer: 0,
       startedAt: todayISO(),
-      message: `${topic.name} Q${safeQuestionNo} の単問演習を開始。要点→問題→解説の順で進めます。`,
+      message: `${topic.name} Q${safeQuestionNo} の単問演習を開始。3択→解説の順で進めます。`,
       singleMode: true,
       singleTopicId: topic.id,
       singleQuestionNo: safeQuestionNo,
@@ -1476,6 +1492,79 @@
     saveState();
     renderAll();
     byId("drillCard").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function onTodayPreviewClick(event) {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+    const button = target.closest("button[data-action]");
+    if (!(button instanceof HTMLButtonElement)) {
+      return;
+    }
+    if (button.dataset.action !== "open-primer") {
+      return;
+    }
+
+    const topicId = String(button.dataset.topicId || "");
+    const sectionIndex = Math.max(0, Math.round(Number(button.dataset.sectionIndex) || 0));
+    const topic = state.topics.find((item) => item.id === topicId);
+    if (!topic) {
+      return;
+    }
+
+    state.primerView.topicId = topic.id;
+    state.primerView.sectionIndex = Math.min(sectionIndex, Math.max(0, getTopicSections(topic).length - 1));
+    saveState();
+    renderPrimerBook();
+    byId("primerBookCard").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function onPrimerTopicChange() {
+    const topicId = byId("primerTopicSelect").value;
+    const topic = state.topics.find((item) => item.id === topicId);
+    if (!topic) {
+      return;
+    }
+    const progress = state.progress[topic.id] || defaultProgress();
+    const section = getCurrentSection(topic, progress.nextQuestion);
+    state.primerView.topicId = topic.id;
+    state.primerView.sectionIndex = section.index;
+    saveState();
+    renderPrimerBook();
+  }
+
+  function onPrimerSectionChange() {
+    const topic = state.topics.find((item) => item.id === state.primerView.topicId);
+    if (!topic) {
+      return;
+    }
+    const pickedIndex = Math.max(0, Math.round(Number(byId("primerSectionSelect").value) || 0));
+    state.primerView.sectionIndex = Math.min(pickedIndex, Math.max(0, getTopicSections(topic).length - 1));
+    saveState();
+    renderPrimerBook();
+  }
+
+  function onPrimerPrevSection() {
+    const topic = state.topics.find((item) => item.id === state.primerView.topicId);
+    if (!topic) {
+      return;
+    }
+    state.primerView.sectionIndex = Math.max(0, state.primerView.sectionIndex - 1);
+    saveState();
+    renderPrimerBook();
+  }
+
+  function onPrimerNextSection() {
+    const topic = state.topics.find((item) => item.id === state.primerView.topicId);
+    if (!topic) {
+      return;
+    }
+    const maxSectionIndex = Math.max(0, getTopicSections(topic).length - 1);
+    state.primerView.sectionIndex = Math.min(maxSectionIndex, state.primerView.sectionIndex + 1);
+    saveState();
+    renderPrimerBook();
   }
 
   function onStartDrill() {
@@ -1521,9 +1610,8 @@
       correctCount: 0,
       wrongCount: 0,
       startedAt: today,
-      message: "ドリル開始。まず要点を確認してから問題を解きます。",
+      message: "ドリル開始。3択を選んで解説を確認しながら進めます。",
       showExplanation: false,
-      primerReadTopicIds: [],
       selectedChoice: -1,
       pendingResult: null,
       singleMode: false,
@@ -1534,28 +1622,6 @@
 
     saveState();
     renderAll();
-  }
-
-  function onDrillPrimerDone() {
-    if (!state.drill.active) {
-      return;
-    }
-
-    const current = getCurrentDrillQuestionContext();
-    if (!current) {
-      return;
-    }
-
-    if (!state.drill.primerReadTopicIds.includes(current.topic.id)) {
-      state.drill.primerReadTopicIds.push(current.topic.id);
-    }
-    state.drill.showExplanation = false;
-    state.drill.selectedChoice = -1;
-    state.drill.pendingResult = null;
-    state.drill.message = `${current.topic.name} の要点確認を完了。問題に進んでください。`;
-
-    saveState();
-    renderDrill();
   }
 
   function onDrillChoiceClick(event) {
@@ -1574,13 +1640,6 @@
 
     const current = getCurrentDrillQuestionContext();
     if (!current) {
-      return;
-    }
-
-    if (!state.drill.primerReadTopicIds.includes(current.topic.id)) {
-      state.drill.message = "先に要点チェックを完了してください。";
-      saveState();
-      renderDrill();
       return;
     }
 
@@ -1612,27 +1671,6 @@
     }
 
     applyDrillResult(state.drill.pendingResult);
-  }
-
-  function onBackToPrimer() {
-    if (!state.drill.active) {
-      return;
-    }
-
-    const current = getCurrentDrillQuestionContext();
-    if (!current) {
-      return;
-    }
-
-    state.drill.primerReadTopicIds = state.drill.primerReadTopicIds
-      .filter((topicId) => topicId !== current.topic.id);
-    state.drill.showExplanation = false;
-    state.drill.selectedChoice = -1;
-    state.drill.pendingResult = null;
-    state.drill.message = `${current.topic.name} の要点に戻りました。`;
-
-    saveState();
-    renderDrill();
   }
 
   function onSkipDrillQuestion() {
@@ -1672,13 +1710,6 @@
 
     const current = getCurrentDrillQuestionContext();
     if (!current) {
-      return;
-    }
-
-    if (!state.drill.primerReadTopicIds.includes(current.topic.id)) {
-      state.drill.message = "先に要点チェックを完了してください。";
-      saveState();
-      renderDrill();
       return;
     }
 
@@ -2360,6 +2391,7 @@
     renderProblemMenu();
     renderTopics();
     renderTodayPlan();
+    renderPrimerBook();
     renderDrill();
     renderMiniTest();
     renderQuestionEditor();
@@ -2620,34 +2652,38 @@
 
     setGauge("todayPlanGaugeFill", "todayPlanGaugeLabel", doneCount, plannedCount, "0%");
 
-    const previewTopicIds = [];
+    const previewCards = [];
     for (const task of state.todayPlan.tasks) {
-      if (!previewTopicIds.includes(task.topicId)) {
-        previewTopicIds.push(task.topicId);
+      const topic = state.topics.find((item) => item.id === task.topicId);
+      if (!topic) {
+        continue;
       }
-      if (previewTopicIds.length >= 3) {
-        break;
+      const progress = state.progress[topic.id] || defaultProgress();
+      const section = getCurrentSection(topic, progress.nextQuestion);
+      const sampleCount = Math.min(3, Math.max(1, section.end - section.start + 1));
+      const sampleLines = [];
+      for (let offset = 0; offset < sampleCount; offset += 1) {
+        const questionNo = section.start + offset;
+        const detail = getQuestionDetail(topic.id, questionNo, false);
+        sampleLines.push(`<li>${escapeHtml(buildPreStudySentence(topic, section, questionNo, detail))}</li>`);
       }
-    }
 
-    preview.innerHTML = previewTopicIds
-      .map((topicId) => {
-        const topic = state.topics.find((item) => item.id === topicId);
-        if (!topic) {
-          return "";
-        }
-        const textbook = getTopicTextbook(topic);
-        return `
-          <article class="previewItem">
-            <p class="previewTitle">${escapeHtml(topic.name)} の予習</p>
-            <p class="note">${escapeHtml(textbook.lead)}</p>
-            <ul class="checkList compactList">
-              ${textbook.points.map((point) => `<li>${escapeHtml(point)}</li>`).join("")}
-            </ul>
-          </article>
-        `;
-      })
-      .join("");
+      previewCards.push(`
+        <article class="previewItem">
+          <p class="previewTitle">${escapeHtml(topic.name)} / ${escapeHtml(section.name)} (Q${section.start}-${section.end})</p>
+          <ul class="checkList compactList">${sampleLines.join("")}</ul>
+          <div class="row">
+            <button
+              type="button"
+              data-action="open-primer"
+              data-topic-id="${escapeAttr(topic.id)}"
+              data-section-index="${section.index}"
+            >このセクションの全問題を読む</button>
+          </div>
+        </article>
+      `);
+    }
+    preview.innerHTML = previewCards.join("");
 
     for (const task of state.todayPlan.tasks) {
       const topic = state.topics.find((item) => item.id === task.topicId);
@@ -2662,10 +2698,64 @@
     }
   }
 
+  function renderPrimerBook() {
+    const topicSelect = byId("primerTopicSelect");
+    const sectionSelect = byId("primerSectionSelect");
+    const sectionMeta = byId("primerSectionMeta");
+    const list = byId("primerQuestionList");
+
+    if (state.topics.length === 0) {
+      topicSelect.innerHTML = "";
+      sectionSelect.innerHTML = "";
+      sectionMeta.textContent = "問題セットがありません。";
+      list.innerHTML = "";
+      return;
+    }
+
+    topicSelect.innerHTML = state.topics
+      .map((topic) => `<option value="${escapeAttr(topic.id)}">${escapeHtml(topic.name)}</option>`)
+      .join("");
+
+    const selectedTopic = state.topics.find((topic) => topic.id === state.primerView.topicId) || state.topics[0];
+    state.primerView.topicId = selectedTopic.id;
+    topicSelect.value = selectedTopic.id;
+
+    const sections = getTopicSections(selectedTopic);
+    const maxIndex = Math.max(0, sections.length - 1);
+    state.primerView.sectionIndex = Math.min(Math.max(0, state.primerView.sectionIndex), maxIndex);
+    const selectedSection = sections[state.primerView.sectionIndex];
+
+    sectionSelect.innerHTML = sections
+      .map((section) => {
+        const sectionNo = section.index + 1;
+        return `<option value="${section.index}">S${sectionNo} ${escapeHtml(section.name)} (Q${section.start}-${section.end})</option>`;
+      })
+      .join("");
+    sectionSelect.value = String(selectedSection.index);
+
+    byId("primerPrevSectionBtn").disabled = selectedSection.index <= 0;
+    byId("primerNextSectionBtn").disabled = selectedSection.index >= maxIndex;
+
+    const questionsInSection = selectedSection.end - selectedSection.start + 1;
+    sectionMeta.textContent = `${selectedTopic.name} / ${selectedSection.name} / Q${selectedSection.start}-${selectedSection.end} (${questionsInSection}問)`;
+
+    const rows = [];
+    for (let questionNo = selectedSection.start; questionNo <= selectedSection.end; questionNo += 1) {
+      const detail = getQuestionDetail(selectedTopic.id, questionNo, false);
+      rows.push(`
+        <article class="primerQuestionItem">
+          <p class="primerSentence">${escapeHtml(buildPreStudySentence(selectedTopic, selectedSection, questionNo, detail))}</p>
+          <p class="note">正答根拠: ${escapeHtml(detail.answer)}</p>
+          <p class="note">間違えやすい点: ${escapeHtml(detail.pitfall)}</p>
+        </article>
+      `);
+    }
+    list.innerHTML = rows.join("");
+  }
+
   function renderDrill() {
     const idle = byId("drillIdle");
     const active = byId("drillActive");
-    const primerPanel = byId("drillPrimerPanel");
     const questionPanel = byId("drillQuestionPanel");
     const reviewPanel = byId("drillReviewPanel");
     const choicesWrap = byId("drillChoicesWrap");
@@ -2691,9 +2781,6 @@
       skipBtn.classList.remove("hidden");
       editBtn.classList.remove("hidden");
       byId("drillMessage").textContent = state.drill.message || "";
-      byId("drillPrimerLead").textContent = "";
-      byId("drillPrimerList").innerHTML = "";
-      byId("drillPrimerTip").textContent = "";
       byId("drillProgress").textContent = "";
       byId("drillQuestion").textContent = "";
       byId("drillPrompt").textContent = "";
@@ -2719,8 +2806,6 @@
     }
 
     const detail = getQuestionDetail(current.topic.id, current.questionNo, false);
-    const textbook = getTopicTextbook(current.topic);
-    const needsPrimer = !state.drill.primerReadTopicIds.includes(current.topic.id);
 
     idle.classList.add("hidden");
     active.classList.remove("hidden");
@@ -2729,50 +2814,15 @@
     if (state.drill.singleMode) {
       byId("drillProgress").textContent = `進捗: ${Math.min(state.drill.pointer + 1, state.drill.queue.length)}/${state.drill.queue.length}（単問）`;
       byId("drillQuestion").textContent = `出題: ${current.topic.name} / ${section.name} / Q${current.questionNo}`;
-      byId("drillRule").textContent = "ルール: 単問モード。要点確認後にこの1問だけ解いて終了します。";
+      byId("drillRule").textContent = "ルール: 単問モード。この1問だけ解いて終了します。";
     } else {
       byId("drillProgress").textContent = `進捗: ${state.drill.pointer + 1} / ${state.drill.queue.length} 問`;
       byId("drillQuestion").textContent = `出題: ${current.topic.name} / ${section.name} / Q${current.questionNo} (${section.start}-${section.end})`;
       byId("drillRule").textContent = `ルール: 各セクションを${state.settings.targetPerfectRounds}回連続満点でクリア。不正解でそのセクション先頭へ戻る。`;
     }
 
-    if (needsPrimer) {
-      primerPanel.classList.remove("hidden");
-      questionPanel.classList.add("hidden");
-      reviewPanel.classList.add("hidden");
-      nextBtn.classList.add("hidden");
-      skipBtn.classList.remove("hidden");
-      editBtn.classList.remove("hidden");
-
-      byId("drillPrimerLead").textContent = textbook.lead;
-      byId("drillPrimerList").innerHTML = textbook.points
-        .map((point) => `<li>${escapeHtml(point)}</li>`)
-        .join("");
-      const trendText = detail.trendTag || PAST5_TREND_BY_TOPIC[current.topic.id] || "";
-      byId("drillPrimerTip").textContent = trendText
-        ? `暗記フレーズ: ${textbook.tip} / ${trendText}`
-        : `暗記フレーズ: ${textbook.tip}`;
-
-      byId("drillPrompt").textContent = "";
-      choicesWrap.innerHTML = "";
-      byId("drillResultLine").textContent = "";
-      byId("drillResultLine").classList.remove("okText", "ngText");
-      byId("drillChoiceLine").textContent = "";
-      byId("drillAnswerLine").textContent = "";
-      byId("drillExplanationLine").textContent = "";
-      byId("drillPitfallLine").textContent = "";
-      byId("drillTermsLine").textContent = "";
-
-      byId("drillMessage").textContent = state.drill.message || "先に要点を読んでから問題に進んでください。";
-      return;
-    }
-
-    primerPanel.classList.add("hidden");
     questionPanel.classList.remove("hidden");
     byId("drillPrompt").textContent = detail.prompt;
-    byId("drillPrimerLead").textContent = "";
-    byId("drillPrimerList").innerHTML = "";
-    byId("drillPrimerTip").textContent = "";
 
     choicesWrap.innerHTML = detail.choices
       .map((choice, index) => {
@@ -3263,6 +3313,17 @@
       return `${head}\n（論点: ${trend}）`;
     }
     return head;
+  }
+
+  function buildPreStudySentence(topic, section, questionNo, detail) {
+    const compactPrompt = String(detail.prompt || "")
+      .replace(/^【3択】/u, "")
+      .replaceAll("\n", " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    const correctChoice = detail.choices[detail.correctIndex] || "";
+    const promptPart = compactPrompt ? `${compactPrompt} ` : "";
+    return `${topic.name} ${section.name} Q${questionNo}: ${promptPart}正解は「${correctChoice}」である。`;
   }
 
   function buildExamChoicesHtml(choices) {

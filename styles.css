@@ -63,15 +63,16 @@ body {
 #settingsCard { order: 2; }
 #problemMenuCard { order: 3; }
 #todayPlanCard { order: 4; }
-#drillCard { order: 5; }
-#miniTestCard { order: 6; }
-#mockExamCard { order: 7; }
-#glossaryCard { order: 8; }
-#pitfallsCard { order: 9; }
-#curriculumCard { order: 10; }
-#researchCard { order: 11; }
-#topicsCard { order: 12; }
-#questionEditorCard { order: 13; }
+#primerBookCard { order: 5; }
+#drillCard { order: 6; }
+#miniTestCard { order: 7; }
+#mockExamCard { order: 8; }
+#glossaryCard { order: 9; }
+#pitfallsCard { order: 10; }
+#curriculumCard { order: 11; }
+#researchCard { order: 12; }
+#topicsCard { order: 13; }
+#questionEditorCard { order: 14; }
 
 .homeNavGrid {
   display: grid;
@@ -88,7 +89,7 @@ body {
 }
 
 .homeNum {
-  width: 26px;
+  min-width: 26px;
   height: 26px;
   border-radius: 999px;
   border: 1px solid #b8cbe8;
@@ -96,6 +97,7 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  padding: 0 6px;
   font-size: 0.82rem;
   font-weight: 700;
   flex-shrink: 0;
@@ -282,13 +284,8 @@ button.ng {
   white-space: pre-wrap;
 }
 
-#drillPrimerPanel,
 #drillReviewPanel {
   background: #f8fbff;
-}
-
-#drillPrimerPanel .checkList {
-  margin-top: 6px;
 }
 
 #drillQuestionPanel .row button,
@@ -528,6 +525,11 @@ button.ng {
   margin-bottom: 8px;
 }
 
+.previewItem .row {
+  margin-top: 6px;
+  margin-bottom: 0;
+}
+
 .previewTitle {
   margin: 0;
   font-weight: 700;
@@ -541,6 +543,25 @@ button.ng {
 .compactList li {
   margin: 3px 0;
   font-size: 0.83rem;
+  line-height: 1.35;
+}
+
+.primerQuestionList {
+  display: grid;
+  gap: 8px;
+}
+
+.primerQuestionItem {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 8px;
+}
+
+.primerSentence {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.4;
 }
 
 footer {
@@ -602,6 +623,10 @@ footer {
   .questionChip {
     font-size: 0.74rem;
     padding: 6px 7px;
+  }
+
+  .primerSentence {
+    font-size: 0.84rem;
   }
 
   .note {

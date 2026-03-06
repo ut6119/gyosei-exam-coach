@@ -21,6 +21,7 @@
           <button type="button" class="homeNavBtn" data-target="settingsCard"><span class="homeNum">2</span><span>学習設定</span></button>
           <button type="button" class="homeNavBtn" data-target="problemMenuCard"><span class="homeNum">3</span><span>問題メニュー</span></button>
           <button type="button" class="homeNavBtn" data-target="todayPlanCard"><span class="homeNum">4</span><span>今日のプラン</span></button>
+          <button type="button" class="homeNavBtn" data-target="primerBookCard"><span class="homeNum">4.5</span><span>予習ページ</span></button>
           <button type="button" class="homeNavBtn" data-target="drillCard"><span class="homeNum">5</span><span>反復ドリル</span></button>
           <button type="button" class="homeNavBtn" data-target="miniTestCard"><span class="homeNum">6</span><span>小テスト</span></button>
           <button type="button" class="homeNavBtn" data-target="mockExamCard"><span class="homeNum">7</span><span>模試</span></button>
@@ -106,19 +107,37 @@
             <span id="todayPlanGaugeLabel">0/0 (0%)</span>
           </div>
           <div class="progressTrack">
-            <div id="todayPlanGaugeFill" class="progressFill"></div>
+          <div id="todayPlanGaugeFill" class="progressFill"></div>
           </div>
         </div>
         <div id="todayPreviewPanel" class="summaryBox">
-          <p class="questionHead">今日の予習（要点チェック）</p>
+          <p class="questionHead">今日の予習（正解できる1文）</p>
+          <p class="note">まずここを読んでからドリルに入ります。各セクションの「全問題を読む」で詳細ページに移動できます。</p>
           <div id="todayPreviewList"></div>
         </div>
         <ul id="todayPlanList" class="checkList"></ul>
       </section>
 
+      <section class="card" id="primerBookCard">
+        <h2>4.5 セクション別予習ページ</h2>
+        <p class="note">分野とセクションを選ぶと、その範囲の全問題について「正解できる1文」を表示します。</p>
+        <div class="row">
+          <label for="primerTopicSelect">分野</label>
+          <select id="primerTopicSelect"></select>
+          <label for="primerSectionSelect">セクション</label>
+          <select id="primerSectionSelect"></select>
+        </div>
+        <div class="row">
+          <button id="primerPrevSectionBtn" type="button">前のセクション</button>
+          <button id="primerNextSectionBtn" type="button">次のセクション</button>
+        </div>
+        <p id="primerSectionMeta" class="note"></p>
+        <div id="primerQuestionList" class="primerQuestionList"></div>
+      </section>
+
       <section class="card" id="drillCard">
         <h2>5. 反復ドリル</h2>
-        <p class="note">流れ: 要点を読む → 3択を選ぶ → 解説を見る → 次の問題へ</p>
+        <p class="note">流れ: 3択を選ぶ → 解説を見る → 次の問題へ</p>
         <div class="progressWrap">
           <div class="progressMeta">
             <span>ドリル進捗</span>
@@ -132,14 +151,6 @@
         <div id="drillActive" class="hidden">
           <p id="drillProgress"></p>
           <p id="drillQuestion" class="questionHead"></p>
-
-          <div id="drillPrimerPanel" class="questionBox hidden">
-            <p class="questionHead">先に要点チェック（30秒）</p>
-            <p id="drillPrimerLead"></p>
-            <ul id="drillPrimerList" class="checkList"></ul>
-            <p id="drillPrimerTip" class="note"></p>
-            <button id="drillPrimerDoneBtn" type="button">要点を読んだので問題へ</button>
-          </div>
 
           <div id="drillQuestionPanel" class="hidden">
             <p id="drillPrompt" class="questionBox"></p>
@@ -159,10 +170,6 @@
             <p id="drillExplanationLine" class="note"></p>
             <p id="drillPitfallLine" class="note"></p>
             <p id="drillTermsLine" class="note"></p>
-          </div>
-
-          <div class="row">
-            <button id="backToPrimerBtn" type="button">要点をもう一度見る</button>
           </div>
         </div>
         <p id="drillMessage" class="note"></p>
