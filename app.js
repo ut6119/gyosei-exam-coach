@@ -1346,15 +1346,23 @@
 
   function applyFocusTabLayout(shouldScroll) {
     const safeTab = normalizeFocusTab(state.ui.activeTab);
+    const showAll = safeTab === "home";
     const expandedIds = new Set(getFocusTabCards(safeTab));
     const cards = document.querySelectorAll(".grid .card");
     for (const card of cards) {
       if (!(card instanceof HTMLElement)) {
         continue;
       }
+      if (showAll) {
+        card.classList.remove("isFocused");
+        card.classList.remove("isCompact");
+        card.classList.remove("tabHidden");
+        continue;
+      }
       const isFocused = expandedIds.has(card.id);
       card.classList.toggle("isFocused", isFocused);
-      card.classList.toggle("isCompact", !isFocused);
+      card.classList.toggle("tabHidden", !isFocused);
+      card.classList.remove("isCompact");
     }
 
     const tabButtons = document.querySelectorAll(".focusTabBtn");

@@ -122,6 +122,10 @@ body {
   border-color: #bfd0ea;
 }
 
+.card.tabHidden {
+  display: none !important;
+}
+
 .card.isCompact {
   padding: 8px 10px;
   background: #fbfcff;
