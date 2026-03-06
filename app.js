@@ -2622,9 +2622,7 @@
         const sections = getTopicSections(topic);
         const topicTotalSections = sections.length;
         const topicClearedSections = Math.min(topicTotalSections, progress.sectionClears);
-        const topicPercent = topicTotalSections > 0
-          ? Math.round((topicClearedSections / topicTotalSections) * 100)
-          : 0;
+        const topicGauge = getTopicGaugeProgress(topic, progress);
         const currentSection = getCurrentSection(topic, progress.nextQuestion);
         const topicOpen = topic.id === firstActiveTopicId ? "open" : "";
         const sectionGroups = [];
@@ -2645,6 +2643,7 @@
             const isCurrent = !progress.mastered && section.index === currentSection.index;
             const sectionOpen = topic.id === firstActiveTopicId && isCurrent ? "open" : "";
             const summaryClass = `sectionFoldSummary${isCleared ? " done" : ""}`;
+            const sectionGauge = getSectionGaugeProgress(topic, progress, section);
             const miniHint = state.trainingCycle.pendingMiniTest
               ? "先に小テスト"
               : isCleared
@@ -2670,7 +2669,8 @@
               <details class="sectionFold" ${sectionOpen}>
                 <summary class="${summaryClass}">
                   <span class="sectionFoldTitle">${isCleared ? "★" : "☆"} S${sectionNo} ${escapeHtml(section.name)}</span>
-                  <span class="sectionFoldMeta">Q${section.start}-${section.end} / ${count}問 / ${miniHint}</span>
+                  <span class="sectionFoldMeta">Q${section.start}-${section.end} / ${count}問 / 周回進捗 ${sectionGauge.done}/${sectionGauge.total} (${sectionGauge.percent}%) / ${miniHint}</span>
+                  <span class="summaryGauge"><span class="summaryGaugeFill" style="width: ${sectionGauge.percent}%"></span></span>
                 </summary>
                 <div class="sectionFoldBody">
                   <div class="questionChipWrap">${chips.join("")}</div>
@@ -2696,7 +2696,8 @@
           <details class="topicFold" ${topicOpen}>
             <summary class="topicFoldSummary">
               <span class="topicFoldTitle">${topicIndex + 1}. ${escapeHtml(topic.name)}</span>
-              <span class="topicFoldMeta">★ ${topicClearedSections}/${topicTotalSections} (${topicPercent}%)</span>
+              <span class="topicFoldMeta">★ ${topicClearedSections}/${topicTotalSections} / 進捗 ${topicGauge.percent}%</span>
+              <span class="summaryGauge"><span class="summaryGaugeFill" style="width: ${topicGauge.percent}%"></span></span>
             </summary>
             <div class="topicFoldBody">
               ${sectionGroupHtml}
@@ -2747,18 +2748,12 @@
       }
       const progress = state.progress[topic.id] || defaultProgress();
       const section = getCurrentSection(topic, progress.nextQuestion);
-      const sampleCount = Math.min(3, Math.max(1, section.end - section.start + 1));
-      const sampleLines = [];
-      for (let offset = 0; offset < sampleCount; offset += 1) {
-        const questionNo = section.start + offset;
-        const detail = getQuestionDetail(topic.id, questionNo, false);
-        sampleLines.push(`<li>${escapeHtml(buildPreStudySentence(topic, section, questionNo, detail))}</li>`);
-      }
+      const primerHtml = buildSectionPreStudyAccordionHtml(topic, section, { openFirst: true });
 
       previewCards.push(`
         <article class="previewItem">
           <p class="previewTitle">${escapeHtml(topic.name)} / ${escapeHtml(section.name)} (Q${section.start}-${section.end})</p>
-          <ul class="checkList compactList">${sampleLines.join("")}</ul>
+          <div class="primerQuestionList">${primerHtml}</div>
           <div class="row">
             <button
               type="button"
@@ -2830,18 +2825,7 @@
     const questionsInSection = selectedSection.end - selectedSection.start + 1;
     sectionMeta.textContent = `${selectedTopic.name} / ${selectedSection.name} / Q${selectedSection.start}-${selectedSection.end} (${questionsInSection}問)`;
 
-    const rows = [];
-    for (let questionNo = selectedSection.start; questionNo <= selectedSection.end; questionNo += 1) {
-      const detail = getQuestionDetail(selectedTopic.id, questionNo, false);
-      rows.push(`
-        <article class="primerQuestionItem">
-          <p class="primerSentence">${escapeHtml(buildPreStudySentence(selectedTopic, selectedSection, questionNo, detail))}</p>
-          <p class="note">正答根拠: ${escapeHtml(detail.answer)}</p>
-          <p class="note">間違えやすい点: ${escapeHtml(detail.pitfall)}</p>
-        </article>
-      `);
-    }
-    list.innerHTML = rows.join("");
+    list.innerHTML = buildSectionPreStudyAccordionHtml(selectedTopic, selectedSection, { openFirst: true });
   }
 
   function renderDrill() {
@@ -3281,6 +3265,61 @@
     return `${current.name} (${progress.sectionClears}/${totalSections})`;
   }
 
+  function getTopicGaugeProgress(topic, progress) {
+    const sections = getTopicSections(topic);
+    const totalSections = sections.length;
+    if (totalSections <= 0) {
+      return {
+        done: 0,
+        total: 0,
+        percent: 0
+      };
+    }
+
+    const cleared = Math.max(0, Math.min(totalSections, Math.round(Number(progress.sectionClears) || 0)));
+    const currentSection = getCurrentSection(topic, progress.nextQuestion);
+    const currentSectionGauge = getSectionGaugeProgress(topic, progress, currentSection);
+    let done = cleared;
+    if (!progress.mastered && currentSection.index === cleared) {
+      done += currentSectionGauge.percent / 100;
+    }
+
+    const safeDone = Math.max(0, Math.min(totalSections, done));
+    const percent = Math.round((safeDone / totalSections) * 100);
+
+    return {
+      done: Number(safeDone.toFixed(2)),
+      total: totalSections,
+      percent
+    };
+  }
+
+  function getSectionGaugeProgress(topic, progress, section) {
+    const sectionSize = Math.max(1, section.end - section.start + 1);
+    const targetRounds = Math.max(1, Math.round(Number(state.settings.targetPerfectRounds) || 1));
+    const total = sectionSize * targetRounds;
+    const cleared = Math.max(0, Math.round(Number(progress.sectionClears) || 0));
+
+    let done = 0;
+    if (progress.mastered || section.index < cleared) {
+      done = total;
+    } else if (section.index > cleared) {
+      done = 0;
+    } else {
+      const safeRounds = Math.max(0, Math.round(Number(progress.perfectRounds) || 0));
+      const safeNext = clampQuestionNo(topic.id, progress.nextQuestion);
+      const answeredInRound = Math.max(0, Math.min(sectionSize, safeNext - section.start));
+      done = Math.min(total, safeRounds * sectionSize + answeredInRound);
+    }
+
+    const percent = total > 0 ? Math.round((done / total) * 100) : 0;
+    return {
+      done,
+      total,
+      percent
+    };
+  }
+
   function onSectionCleared(topic, section) {
     state.trainingCycle.sectionClearsSinceMiniTest += 1;
 
@@ -3446,36 +3485,87 @@
     return head;
   }
 
+  function buildSectionPreStudyAccordionHtml(topic, section, options = {}) {
+    const openFirst = Boolean(options.openFirst);
+    const rows = [];
+
+    for (let questionNo = section.start; questionNo <= section.end; questionNo += 1) {
+      const detail = getQuestionDetail(topic.id, questionNo, false);
+      const openAttr = openFirst && questionNo === section.start ? "open" : "";
+      rows.push(`
+        <details class="primerQuestionFold" ${openAttr}>
+          <summary class="primerQuestionSummary">
+            <span class="primerQuestionNo">Q${questionNo}</span>
+            <span class="primerSentence">${escapeHtml(buildPreStudySentence(topic, section, questionNo, detail))}</span>
+          </summary>
+          <div class="primerQuestionBody">
+            <p class="note">正答根拠: ${escapeHtml(detail.answer)}</p>
+            <p class="note">間違えやすい点: ${escapeHtml(detail.pitfall)}</p>
+          </div>
+        </details>
+      `);
+    }
+
+    return rows.join("");
+  }
+
   function buildPreStudySentence(topic, section, questionNo, detail) {
-    const compactPrompt = String(detail.prompt || "")
-      .replace(/^【3択】/u, "")
-      .replaceAll("\n", " ")
-      .replace(/\s+/g, " ")
-      .trim();
-    const correctChoice = String(detail.choices[detail.correctIndex] || "")
+    const context = buildPreStudyContext(topic, detail.prompt || "");
+    const rawChoice = String(detail.choices[detail.correctIndex] || "").trim();
+    const fallbackChoice = String(detail.answer || "").trim();
+    const choice = (rawChoice || fallbackChoice || "条文と要件を確認する")
       .replace(/[。．]$/u, "")
       .trim();
 
-    let base = compactPrompt
-      .replace(/[？?]$/u, "")
-      .replace(/どれか$/u, "")
-      .replace(/どれ$/u, "")
+    return `${topic.name} ${section.name} Q${questionNo}: ${context}、当てはまる内容は「${choice}」である。`;
+  }
+
+  function buildPreStudyContext(topic, rawPrompt) {
+    let text = String(rawPrompt || "")
+      .replace(/^【[^】]*】/u, "")
+      .replace(/^(本番風問題|小テスト問題|模試問題)\s*[:：]\s*/u, "")
+      .replace(/\s+/g, " ")
       .trim();
 
-    let statement = "";
-    if (!base) {
-      statement = `このとき、最も妥当なのは${correctChoice}である。`;
-    } else if (/のは$/u.test(base)) {
-      statement = `${base}${correctChoice}である。`;
-    } else if (/は$/u.test(base)) {
-      statement = `${base}${correctChoice}である。`;
-    } else if (/とき$/u.test(base)) {
-      statement = `${base}、最も妥当なのは${correctChoice}である。`;
-    } else {
-      statement = `${base}なとき、最も妥当なのは${correctChoice}である。`;
+    text = text
+      .replace(/次のうち.*$/u, "")
+      .replace(/次の記述.*$/u, "")
+      .replace(/最も妥当なものは.*$/u, "")
+      .replace(/最も適切なものは.*$/u, "")
+      .replace(/誤っているものは.*$/u, "")
+      .replace(/正しいものは.*$/u, "")
+      .replace(/どれか.*$/u, "")
+      .replace(/どれ.*$/u, "")
+      .replace(/[？?。．]+$/u, "")
+      .trim();
+
+    text = text
+      .replace(/のは$/u, "")
+      .replace(/とは$/u, "")
+      .replace(/は$/u, "")
+      .trim();
+
+    if (!text || text.length < 6 || /(してはいけない|しなければならない|である|となる)$/u.test(text)) {
+      return `${topic.name}の重要ポイントを確認するとき`;
     }
 
-    return `${topic.name} ${section.name} Q${questionNo}: ${statement}`;
+    if (/(とき|場合|時)$/u.test(text)) {
+      return text;
+    }
+
+    if (/[はがをにでとへの]$/u.test(text)) {
+      return `${topic.name}の重要ポイントを確認するとき`;
+    }
+
+    if (/(する|される|できる|求める|定める|扱う|判断する|確認する|納得できない|争う|保護する|成立する|取り消す|取消す)$/u.test(text) || /ない$/u.test(text)) {
+      return `${text}とき`;
+    }
+
+    if (/^[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}A-Za-z0-9・ー\s]{2,36}$/u.test(text)) {
+      return `${text}について考えるとき`;
+    }
+
+    return `${text}のとき`;
   }
 
   function buildExamChoicesHtml(choices) {
