@@ -2513,41 +2513,65 @@
           : 0;
         const currentSection = getCurrentSection(topic, progress.nextQuestion);
         const topicOpen = topic.id === firstActiveTopicId ? "open" : "";
-        const sectionHtml = sections.map((section) => {
-          const sectionNo = section.index + 1;
-          const count = section.end - section.start + 1;
-          const isCleared = section.index < topicClearedSections;
-          const isCurrent = !progress.mastered && section.index === currentSection.index;
-          const sectionOpen = topic.id === firstActiveTopicId && isCurrent ? "open" : "";
-          const miniHint = state.trainingCycle.pendingMiniTest
-            ? "先に小テスト"
-            : isCleared
-              ? "クリア済み"
-              : isCurrent
-                ? `次の小テストまであと${Math.max(0, miniLeft - 1)}`
-                : `小テストまであと${miniLeft}`;
-          const chips = [];
-          for (let questionNo = section.start; questionNo <= section.end; questionNo += 1) {
-            chips.push(`
-              <button
-                type="button"
-                class="questionChip"
-                data-action="single"
-                data-topic-id="${escapeAttr(topic.id)}"
-                data-question-no="${questionNo}"
-                data-section-name="${escapeAttr(section.name)}"
-              >Q${questionNo}</button>
-            `);
-          }
+        const sectionGroups = [];
+        for (let index = 0; index < sections.length; index += 10) {
+          sectionGroups.push(sections.slice(index, index + 10));
+        }
+        const currentGroupIndex = Math.floor(currentSection.index / 10);
+        const sectionGroupHtml = sectionGroups.map((group, groupIndex) => {
+          const groupOpen = topic.id === firstActiveTopicId && groupIndex === currentGroupIndex ? "open" : "";
+          const firstNo = group[0].index + 1;
+          const lastNo = group[group.length - 1].index + 1;
+          const groupCleared = group.filter((section) => section.index < topicClearedSections).length;
+
+          const sectionHtml = group.map((section) => {
+            const sectionNo = section.index + 1;
+            const count = section.end - section.start + 1;
+            const isCleared = section.index < topicClearedSections;
+            const isCurrent = !progress.mastered && section.index === currentSection.index;
+            const sectionOpen = topic.id === firstActiveTopicId && isCurrent ? "open" : "";
+            const miniHint = state.trainingCycle.pendingMiniTest
+              ? "先に小テスト"
+              : isCleared
+                ? "クリア済み"
+                : isCurrent
+                  ? `次の小テストまであと${Math.max(0, miniLeft - 1)}`
+                  : `小テストまであと${miniLeft}`;
+            const chips = [];
+            for (let questionNo = section.start; questionNo <= section.end; questionNo += 1) {
+              chips.push(`
+                <button
+                  type="button"
+                  class="questionChip"
+                  data-action="single"
+                  data-topic-id="${escapeAttr(topic.id)}"
+                  data-question-no="${questionNo}"
+                  data-section-name="${escapeAttr(section.name)}"
+                >Q${questionNo}</button>
+              `);
+            }
+
+            return `
+              <details class="sectionFold" ${sectionOpen}>
+                <summary class="sectionFoldSummary">
+                  <span class="sectionFoldTitle">${isCleared ? "★" : "☆"} S${sectionNo} ${escapeHtml(section.name)}</span>
+                  <span class="sectionFoldMeta">Q${section.start}-${section.end} / ${count}問 / ${miniHint}</span>
+                </summary>
+                <div class="sectionFoldBody">
+                  <div class="questionChipWrap">${chips.join("")}</div>
+                </div>
+              </details>
+            `;
+          }).join("");
 
           return `
-            <details class="sectionFold" ${sectionOpen}>
-              <summary class="sectionFoldSummary">
-                <span class="sectionFoldTitle">${isCleared ? "★" : "☆"} S${sectionNo} ${escapeHtml(section.name)}</span>
-                <span class="sectionFoldMeta">Q${section.start}-${section.end} / ${count}問 / ${miniHint}</span>
+            <details class="sectionGroupFold" ${groupOpen}>
+              <summary class="sectionGroupSummary">
+                <span class="sectionGroupTitle">セクション S${firstNo} - S${lastNo}</span>
+                <span class="sectionGroupMeta">★ ${groupCleared}/${group.length}</span>
               </summary>
-              <div class="sectionFoldBody">
-                <div class="questionChipWrap">${chips.join("")}</div>
+              <div class="sectionGroupBody">
+                ${sectionHtml}
               </div>
             </details>
           `;
@@ -2560,7 +2584,7 @@
               <span class="topicFoldMeta">★ ${topicClearedSections}/${topicTotalSections} (${topicPercent}%)</span>
             </summary>
             <div class="topicFoldBody">
-              ${sectionHtml}
+              ${sectionGroupHtml}
             </div>
           </details>
         `;
