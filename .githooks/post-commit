@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Skip auto deploy when needed
+if [ "${SKIP_NETLIFY_DEPLOY:-}" = "1" ]; then
+  exit 0
+fi
+
+branch="$(git rev-parse --abbrev-ref HEAD)"
+if [ "$branch" != "main" ]; then
+  exit 0
+fi
+
+# Deploy the current workspace to Netlify production.
+# Logs are captured for later inspection.
+if ! npx --yes netlify-cli deploy --prod --dir . >/tmp/gyosei_netlify_post_commit.log 2>&1; then
+  echo "[post-commit] Netlify deploy failed: /tmp/gyosei_netlify_post_commit.log" >&2
+fi
