@@ -4,6 +4,7 @@
   const STORAGE_KEY = "gyoseiExamCoach.v1";
   const RESEARCH_UPDATED_AT = "2026-03-06";
   const COMPLETE_BUFFER_DAYS = 7;
+  const SECTION_CLEAR_TARGET = 5;
 
   const OFFICIAL_SPEC_TEXT = "公式情報ベース: 試験時間180分(13:00-16:00) / 出題60問(法令等46問+基礎知識14問) / 合格基準: 法令等122点以上・基礎知識24点以上・総得点180点以上";
 
@@ -239,6 +240,15 @@
     commercial: "過去5年頻出: 会社機関 / 株主総会 / 取締役",
     general: "過去5年頻出: 個人情報 / 文章理解 / 情報分野",
     describe: "過去5年頻出: 要件→当てはめ→結論の型"
+  };
+
+  const TOPIC_SECTION_LABELS = {
+    admin: ["行政手続", "行政不服審査", "行政事件訴訟", "国家賠償", "地方自治", "行政法総合"],
+    civil: ["民法総則", "物権", "債権", "親族・相続", "民法総合"],
+    const_basic: ["憲法人権", "憲法統治", "基礎法学", "判例総合"],
+    commercial: ["会社機関", "株式", "役員責任", "商法総合"],
+    general: ["個人情報", "情報通信", "文章理解", "時事・一般知識"],
+    describe: ["答案構成", "要件抽出", "当てはめ", "結論表現"]
   };
 
   const PAST5_CHOICE_BANK = {
@@ -771,6 +781,7 @@
     return {
       nextQuestion: 1,
       perfectRounds: 0,
+      sectionClears: 0,
       mastered: false,
       attempts: 0,
       correct: 0,
@@ -835,6 +846,13 @@
     };
   }
 
+  function defaultTrainingCycle() {
+    return {
+      sectionClearsSinceMiniTest: 0,
+      pendingMiniTest: false
+    };
+  }
+
   function defaultState() {
     const topics = DEFAULT_TOPICS.map((topic) => ({ ...topic }));
     const progress = {};
@@ -865,6 +883,7 @@
       drill: defaultDrill(),
       mock: defaultMock(),
       miniTest: defaultMiniTest(),
+      trainingCycle: defaultTrainingCycle(),
       questionEditor: {
         topicId: topics[0].id,
         questionNo: 1,
@@ -914,6 +933,9 @@
     state.drill = state.drill && typeof state.drill === "object" ? state.drill : defaultDrill();
     state.mock = state.mock && typeof state.mock === "object" ? state.mock : defaultMock();
     state.miniTest = state.miniTest && typeof state.miniTest === "object" ? state.miniTest : defaultMiniTest();
+    state.trainingCycle = state.trainingCycle && typeof state.trainingCycle === "object"
+      ? state.trainingCycle
+      : defaultTrainingCycle();
     state.questionEditor = state.questionEditor && typeof state.questionEditor === "object"
       ? state.questionEditor
       : fresh.questionEditor;
@@ -974,6 +996,12 @@
     state.miniTest.correctCount = Math.max(0, Math.round(Number(state.miniTest.correctCount) || 0));
     state.miniTest.wrongCount = Math.max(0, Math.round(Number(state.miniTest.wrongCount) || 0));
     state.miniTest.holdCount = Math.max(0, Math.round(Number(state.miniTest.holdCount) || 0));
+
+    state.trainingCycle.sectionClearsSinceMiniTest = Math.max(
+      0,
+      Math.round(Number(state.trainingCycle.sectionClearsSinceMiniTest) || 0)
+    );
+    state.trainingCycle.pendingMiniTest = Boolean(state.trainingCycle.pendingMiniTest);
 
     const existingTopicIds = new Set(state.topics.map((topic) => topic.id));
 
@@ -1040,9 +1068,12 @@
 
   function normalizeProgress(topic, progress) {
     const safe = { ...defaultProgress(), ...(progress || {}) };
+    const sections = getTopicSections(topic);
+    const totalSections = Math.max(1, sections.length);
 
     safe.nextQuestion = clampNumber(safe.nextQuestion, 1, topic.total, 1);
     safe.perfectRounds = Math.max(0, Math.round(Number(safe.perfectRounds) || 0));
+    safe.sectionClears = Math.max(0, Math.round(Number(safe.sectionClears) || 0));
     safe.attempts = Math.max(0, Math.round(Number(safe.attempts) || 0));
     safe.correct = Math.max(0, Math.round(Number(safe.correct) || 0));
     safe.mistakes = Math.max(0, Math.round(Number(safe.mistakes) || 0));
@@ -1051,11 +1082,20 @@
       safe.correct = safe.attempts;
     }
 
-    if (safe.perfectRounds >= state.settings.targetPerfectRounds) {
-      safe.mastered = true;
+    if (safe.mastered && safe.sectionClears === 0) {
+      safe.sectionClears = totalSections;
+    }
+
+    if (safe.sectionClears > totalSections) {
+      safe.sectionClears = totalSections;
+    }
+
+    safe.mastered = safe.sectionClears >= totalSections;
+    if (safe.mastered) {
       safe.nextQuestion = topic.total;
-    } else {
-      safe.mastered = false;
+      safe.perfectRounds = state.settings.targetPerfectRounds;
+    } else if (safe.perfectRounds >= state.settings.targetPerfectRounds) {
+      safe.perfectRounds = 0;
     }
 
     return safe;
@@ -1368,6 +1408,13 @@
       alert("小テストが進行中です。先に小テストを終了してください。");
       return;
     }
+    if (state.trainingCycle.pendingMiniTest) {
+      alert("5セクションクリア済みです。先に小テストを実施してください。");
+      state.drill.message = "小テスト完了後に次のセクションへ進みます。";
+      saveState();
+      renderDrill();
+      return;
+    }
 
     const today = todayISO();
     if (state.todayPlan.date !== today || state.todayPlan.tasks.length === 0) {
@@ -1574,6 +1621,8 @@
 
     const progress = state.progress[topicId] || defaultProgress();
     const questionNo = progress.nextQuestion;
+    const currentSection = getCurrentSection(topic, questionNo);
+    const sectionLength = Math.max(1, currentSection.end - currentSection.start + 1);
 
     progress.attempts += 1;
     progress.lastStudied = todayISO();
@@ -1583,17 +1632,31 @@
       state.drill.correctCount += 1;
 
       if (!progress.mastered) {
-        if (progress.nextQuestion < topic.total) {
+        if (progress.nextQuestion < currentSection.end) {
           progress.nextQuestion += 1;
         } else {
           progress.perfectRounds += 1;
           if (progress.perfectRounds >= state.settings.targetPerfectRounds) {
-            progress.mastered = true;
-            progress.nextQuestion = topic.total;
-            state.drill.message = `${topic.name} は連続満点達成でクリア。`;
+            progress.sectionClears += 1;
+            progress.perfectRounds = 0;
+
+            const sections = getTopicSections(topic);
+            const nextSectionIndex = currentSection.index + 1;
+            if (nextSectionIndex < sections.length) {
+              const nextSection = sections[nextSectionIndex];
+              progress.nextQuestion = nextSection.start;
+              state.drill.message = `${topic.name} ${currentSection.name} をクリア。次は ${nextSection.name}。`;
+            } else {
+              progress.mastered = true;
+              progress.nextQuestion = topic.total;
+              state.drill.message = `${topic.name} は全セクションをクリア。`;
+            }
+
+            onSectionCleared(topic, currentSection);
           } else {
-            progress.nextQuestion = 1;
-            state.drill.message = `${topic.name} 1周満点。もう1周連続満点でクリア。`;
+            const remain = state.settings.targetPerfectRounds - progress.perfectRounds;
+            progress.nextQuestion = currentSection.start;
+            state.drill.message = `${topic.name} ${currentSection.name} 1周満点。あと${remain}周でセクションクリア。`;
           }
         }
       }
@@ -1601,16 +1664,16 @@
       progress.mistakes += 1;
       progress.perfectRounds = 0;
       progress.mastered = false;
-      progress.nextQuestion = 1;
+      progress.nextQuestion = currentSection.start;
       state.drill.wrongCount += 1;
 
       const heatKey = `${topicId}:${questionNo}`;
       state.pitfallHeatmap[heatKey] = (state.pitfallHeatmap[heatKey] || 0) + 1;
 
-      const restartBurst = Math.min(topic.total, 12);
+      const restartBurst = Math.min(sectionLength, 6);
       const penaltyQueue = new Array(restartBurst).fill(topicId);
       state.drill.queue.splice(state.drill.pointer + 1, 0, ...penaltyQueue);
-      state.drill.message = `${topic.name} Q${questionNo} で不正解。Q1に戻して追加${restartBurst}問。`;
+      state.drill.message = `${topic.name} ${currentSection.name} で不正解。セクション先頭に戻して追加${restartBurst}問。`;
     }
 
     state.progress[topicId] = normalizeProgress(topic, progress);
@@ -1638,6 +1701,9 @@
     state.drill.selectedChoice = -1;
     state.drill.pendingResult = null;
     state.drill.message = `本日のドリル終了: 正解 ${state.drill.correctCount} / 不正解 ${state.drill.wrongCount} / 正答率 ${correctRate}%`;
+    if (state.trainingCycle.pendingMiniTest) {
+      state.drill.message += " / 次は小テストを実施してください。";
+    }
     state.todayPlan = { date: "", tasks: [] };
   }
 
@@ -1954,14 +2020,22 @@
 
     const total = state.miniTest.queue.length;
     const rate = total > 0 ? Math.round((state.miniTest.correctCount / total) * 100) : 0;
+    const hadPending = state.trainingCycle.pendingMiniTest;
 
     state.miniTest = {
       ...defaultMiniTest(),
       message: `${message} 結果: 正解${state.miniTest.correctCount}/${total} (${rate}%), 不正解${state.miniTest.wrongCount}`
     };
 
+    if (hadPending) {
+      state.trainingCycle.pendingMiniTest = false;
+      state.trainingCycle.sectionClearsSinceMiniTest = 0;
+      state.miniTest.message += " / セクション学習を再開できます。";
+    }
+
     saveState();
     renderMiniTest();
+    renderTopics();
     renderPitfalls();
   }
 
@@ -2223,23 +2297,25 @@
   }
 
   function renderTopics() {
+    const cycleBadge = state.trainingCycle.pendingMiniTest
+      ? `<p class="note">小テスト待ち: セクション${SECTION_CLEAR_TARGET}個到達。先に小テストを実施してください。</p>`
+      : `<p class="note">小テストまで: あと${Math.max(0, SECTION_CLEAR_TARGET - state.trainingCycle.sectionClearsSinceMiniTest)}セクション</p>`;
+
     const rows = state.topics.map((topic) => {
       const progress = state.progress[topic.id] || defaultProgress();
+      const section = getCurrentSection(topic, progress.nextQuestion);
+      const sectionProgress = getSectionProgressLabel(topic, progress);
       const roundsText = `${progress.perfectRounds}/${state.settings.targetPerfectRounds}`;
-      const status = progress.mastered ? "クリア" : `Q${progress.nextQuestion}から`;
-      const accuracy = progress.attempts > 0
-        ? `${Math.round((progress.correct / progress.attempts) * 100)}%`
-        : "-";
 
       return `
         <tr>
           <td><input data-topic-id="${escapeAttr(topic.id)}" data-field="name" value="${escapeAttr(topic.name)}" /></td>
           <td><input data-topic-id="${escapeAttr(topic.id)}" data-field="total" type="number" min="1" value="${topic.total}" /></td>
-          <td>${status}</td>
-          <td>${roundsText}</td>
-          <td>${progress.mistakes}</td>
-          <td>${accuracy}</td>
           <td>
+            ${sectionProgress}<br />
+            <span class="note">現在: ${section.name} / Q${section.start}-${section.end} / 周回 ${roundsText}</span>
+          </td>
+          <td class="topicOps">
             <button type="button" data-topic-id="${escapeAttr(topic.id)}" data-action="reset">リセット</button>
             <button type="button" data-topic-id="${escapeAttr(topic.id)}" data-action="delete">削除</button>
           </td>
@@ -2248,15 +2324,13 @@
     });
 
     byId("topicsTableWrap").innerHTML = `
+      ${cycleBadge}
       <table class="table">
         <thead>
           <tr>
             <th>セット名</th>
             <th>問題数</th>
-            <th>進行位置</th>
-            <th>満点連続</th>
-            <th>ミス</th>
-            <th>正答率</th>
+            <th>セクション進行</th>
             <th>操作</th>
           </tr>
         </thead>
@@ -2289,8 +2363,9 @@
         continue;
       }
       const progress = state.progress[topic.id] || defaultProgress();
+      const section = getCurrentSection(topic, progress.nextQuestion);
       const li = document.createElement("li");
-      li.textContent = `${topic.name}: ${task.count}問 (現在Q${progress.nextQuestion}/${topic.total}, 連続満点 ${progress.perfectRounds}/${state.settings.targetPerfectRounds})`;
+      li.textContent = `${topic.name}: ${task.count}問 (現在 ${section.name} Q${section.start}-${section.end}, 周回 ${progress.perfectRounds}/${state.settings.targetPerfectRounds})`;
       list.appendChild(li);
     }
   }
@@ -2346,8 +2421,9 @@
     active.classList.remove("hidden");
 
     byId("drillProgress").textContent = `進捗: ${state.drill.pointer + 1} / ${state.drill.queue.length} 問`;
-    byId("drillQuestion").textContent = `出題: ${current.topic.name} / Q${current.questionNo} / ${current.topic.total}`;
-    byId("drillRule").textContent = `ルール: ${state.settings.targetPerfectRounds}回連続満点でクリア。不正解でQ1へ戻る。`;
+    const section = getCurrentSection(current.topic, current.questionNo);
+    byId("drillQuestion").textContent = `出題: ${current.topic.name} / ${section.name} / Q${current.questionNo} (${section.start}-${section.end})`;
+    byId("drillRule").textContent = `ルール: 各セクションを${state.settings.targetPerfectRounds}回連続満点でクリア。不正解でそのセクション先頭へ戻る。`;
 
     if (needsPrimer) {
       primerPanel.classList.remove("hidden");
@@ -2653,6 +2729,70 @@
       const li = document.createElement("li");
       li.innerHTML = `<strong>${escapeHtml(source.title)}:</strong> ${escapeHtml(source.insight)} <a href="${escapeAttr(source.url)}" target="_blank" rel="noreferrer noopener">出典</a>`;
       list.appendChild(li);
+    }
+  }
+
+  function getSectionSizeForTopic(topic) {
+    if (topic.category === "describe") {
+      return 4;
+    }
+    return 5;
+  }
+
+  function getTopicSections(topic) {
+    const total = Math.max(1, Math.round(Number(topic.total) || 1));
+    const sectionSize = Math.max(3, getSectionSizeForTopic(topic));
+    const labels = TOPIC_SECTION_LABELS[topic.id] || [topic.name.replace(" 肢別", "")];
+    const chunks = [];
+    const labelCounter = {};
+
+    let index = 0;
+    let start = 1;
+    while (start <= total) {
+      const end = Math.min(total, start + sectionSize - 1);
+      const baseLabel = labels[index % labels.length];
+      labelCounter[baseLabel] = (labelCounter[baseLabel] || 0) + 1;
+      const suffix = labels.length === 1 ? labelCounter[baseLabel] : Math.ceil((index + 1) / labels.length);
+      const name = `${baseLabel} ${suffix}`;
+      chunks.push({
+        index,
+        name,
+        start,
+        end
+      });
+      index += 1;
+      start = end + 1;
+    }
+
+    return chunks;
+  }
+
+  function getCurrentSection(topic, questionNo) {
+    const sections = getTopicSections(topic);
+    for (const section of sections) {
+      if (questionNo >= section.start && questionNo <= section.end) {
+        return section;
+      }
+    }
+    return sections[sections.length - 1];
+  }
+
+  function getSectionProgressLabel(topic, progress) {
+    const sections = getTopicSections(topic);
+    const totalSections = sections.length;
+    if (progress.mastered) {
+      return `完了 ${totalSections}/${totalSections}`;
+    }
+    const current = getCurrentSection(topic, progress.nextQuestion);
+    return `${current.name} (${progress.sectionClears}/${totalSections})`;
+  }
+
+  function onSectionCleared(topic, section) {
+    state.trainingCycle.sectionClearsSinceMiniTest += 1;
+
+    if (state.trainingCycle.sectionClearsSinceMiniTest >= SECTION_CLEAR_TARGET) {
+      state.trainingCycle.pendingMiniTest = true;
+      state.drill.message = `${topic.name} ${section.name} クリア。${SECTION_CLEAR_TARGET}セクション到達のため、小テストへ進んでください。`;
     }
   }
 
@@ -3022,16 +3162,30 @@
       return 0;
     }
 
-    const targetRounds = state.settings.targetPerfectRounds;
-    const roundsLeft = Math.max(0, targetRounds - progress.perfectRounds);
-    if (roundsLeft === 0) {
+    const sections = getTopicSections(topic);
+    if (sections.length === 0) {
       return 0;
     }
 
-    const currentRoundRemaining = Math.max(0, topic.total - progress.nextQuestion + 1);
-    const additionalFullRounds = Math.max(0, roundsLeft - 1);
+    const targetRounds = state.settings.targetPerfectRounds;
+    const currentSection = getCurrentSection(topic, progress.nextQuestion);
+    const sectionRemaining = Math.max(0, currentSection.end - progress.nextQuestion + 1);
+    const currentRoundsLeft = Math.max(1, targetRounds - progress.perfectRounds);
+    const currentSectionLength = Math.max(1, currentSection.end - currentSection.start + 1);
 
-    return currentRoundRemaining + topic.total * additionalFullRounds;
+    let effort = sectionRemaining + (currentRoundsLeft - 1) * currentSectionLength;
+
+    const nextStartIndex = currentSection.index + 1;
+    for (let i = nextStartIndex; i < sections.length; i += 1) {
+      const section = sections[i];
+      const len = Math.max(1, section.end - section.start + 1);
+      effort += len * targetRounds;
+    }
+
+    if (effort <= 0) {
+      return 0;
+    }
+    return Math.ceil(effort);
   }
 
   function getDailyTargetCount() {

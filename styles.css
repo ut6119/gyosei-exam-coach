@@ -293,17 +293,59 @@ button.ng {
 }
 
 #topicsTableWrap {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
+  overflow: hidden;
 }
 
 #topicsTableWrap .table {
-  min-width: 760px;
+  table-layout: fixed;
+  font-size: 0.84rem;
 }
 
-#topicsTableWrap .table th,
+#topicsTableWrap .table th:nth-child(1),
+#topicsTableWrap .table td:nth-child(1) {
+  width: 34%;
+}
+
+#topicsTableWrap .table th:nth-child(2),
+#topicsTableWrap .table td:nth-child(2) {
+  width: 18%;
+}
+
+#topicsTableWrap .table th:nth-child(3),
+#topicsTableWrap .table td:nth-child(3) {
+  width: 30%;
+}
+
+#topicsTableWrap .table th:nth-child(4),
+#topicsTableWrap .table td:nth-child(4) {
+  width: 18%;
+}
+
+#topicsTableWrap .table th {
+  white-space: normal;
+  word-break: keep-all;
+}
+
 #topicsTableWrap .table td {
-  white-space: nowrap;
+  vertical-align: top;
+  word-break: break-word;
+}
+
+#topicsTableWrap input[data-field="name"],
+#topicsTableWrap input[data-field="total"] {
+  width: 100%;
+  min-width: 0;
+}
+
+#topicsTableWrap .topicOps {
+  display: grid;
+  gap: 6px;
+}
+
+#topicsTableWrap .note {
+  margin: 2px 0 0;
+  font-size: 0.74rem;
+  line-height: 1.15;
 }
 
 footer {
@@ -325,7 +367,24 @@ footer {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  #topicsTableWrap .table {
-    min-width: 680px;
+  #topicsTableWrap .table th,
+  #topicsTableWrap .table td {
+    padding: 5px 3px;
+    font-size: 0.78rem;
+  }
+
+  #topicsTableWrap .topicOps button {
+    padding: 7px 6px;
+    font-size: 0.78rem;
+  }
+
+  #topicsTableWrap input[data-field="name"],
+  #topicsTableWrap input[data-field="total"] {
+    padding: 6px 7px;
+    font-size: 0.8rem;
+  }
+
+  .note {
+    line-height: 1.2;
   }
 }
