@@ -822,6 +822,13 @@
     };
   }
 
+  function createDrillQueueEntry(topicId, questionNo = 0) {
+    return {
+      topicId: String(topicId || ""),
+      questionNo: Math.max(0, Math.round(Number(questionNo) || 0))
+    };
+  }
+
   function defaultMock() {
     return {
       active: false,
@@ -968,8 +975,22 @@
       state.todayPlan.tasks = [];
     }
 
+    const existingTopicIds = new Set(state.topics.map((topic) => topic.id));
+
     if (!Array.isArray(state.drill.queue)) {
       state.drill.queue = [];
+    } else {
+      state.drill.queue = state.drill.queue
+        .map((item) => {
+          if (typeof item === "string") {
+            return createDrillQueueEntry(item, 0);
+          }
+          if (item && typeof item === "object") {
+            return createDrillQueueEntry(item.topicId, item.questionNo);
+          }
+          return null;
+        })
+        .filter((entry) => entry && existingTopicIds.has(entry.topicId));
     }
     state.drill.showExplanation = Boolean(state.drill.showExplanation);
     state.drill.selectedChoice = Number.isInteger(state.drill.selectedChoice)
@@ -1020,8 +1041,6 @@
       Math.round(Number(state.trainingCycle.sectionClearsSinceMiniTest) || 0)
     );
     state.trainingCycle.pendingMiniTest = Boolean(state.trainingCycle.pendingMiniTest);
-
-    const existingTopicIds = new Set(state.topics.map((topic) => topic.id));
 
     for (const topic of state.topics) {
       if (!state.progress[topic.id]) {
@@ -1206,6 +1225,8 @@
     byId("primerPrevSectionBtn").addEventListener("click", onPrimerPrevSection);
     byId("primerNextSectionBtn").addEventListener("click", onPrimerNextSection);
     byId("startDrillBtn").addEventListener("click", onStartDrill);
+    byId("drillPrevBtn").addEventListener("click", onDrillPrevQuestion);
+    byId("drillNavNextBtn").addEventListener("click", onDrillNavNextQuestion);
     byId("drillChoicesWrap").addEventListener("click", onDrillChoiceClick);
     byId("applyReviewResultBtn").addEventListener("click", onApplyReviewResult);
     byId("skipBtn").addEventListener("click", onSkipDrillQuestion);
@@ -1479,7 +1500,7 @@
     state.drill = {
       ...defaultDrill(),
       active: true,
-      queue: [topic.id],
+      queue: [createDrillQueueEntry(topic.id, safeQuestionNo)],
       pointer: 0,
       startedAt: todayISO(),
       message: `${topic.name} Q${safeQuestionNo} の単問演習を開始。3択→解説の順で進めます。`,
@@ -1592,7 +1613,7 @@
     const queue = [];
     for (const task of state.todayPlan.tasks) {
       for (let i = 0; i < task.count; i += 1) {
-        queue.push(task.topicId);
+        queue.push(createDrillQueueEntry(task.topicId, 0));
       }
     }
 
@@ -1622,6 +1643,37 @@
 
     saveState();
     renderAll();
+  }
+
+  function onDrillPrevQuestion() {
+    if (!state.drill.active) {
+      return;
+    }
+    if (state.drill.pointer <= 0) {
+      state.drill.message = "これより前の問題はありません。";
+      saveState();
+      renderDrill();
+      return;
+    }
+
+    state.drill.pointer -= 1;
+    state.drill.showExplanation = false;
+    state.drill.selectedChoice = -1;
+    state.drill.pendingResult = null;
+    state.drill.message = "前の問題へ移動しました。";
+    saveState();
+    renderDrill();
+  }
+
+  function onDrillNavNextQuestion() {
+    if (!state.drill.active) {
+      return;
+    }
+    if (state.drill.showExplanation && typeof state.drill.pendingResult === "boolean") {
+      onApplyReviewResult();
+      return;
+    }
+    onSkipDrillQuestion();
   }
 
   function onDrillChoiceClick(event) {
@@ -1720,8 +1772,8 @@
       return;
     }
 
-    const topicId = state.drill.queue[state.drill.pointer];
-    const topic = state.topics.find((item) => item.id === topicId);
+    const topic = current.topic;
+    const topicId = topic.id;
     if (!topic) {
       state.drill.showExplanation = false;
       state.drill.selectedChoice = -1;
@@ -1810,7 +1862,7 @@
       state.pitfallHeatmap[heatKey] = (state.pitfallHeatmap[heatKey] || 0) + 1;
 
       const restartBurst = Math.min(sectionLength, 6);
-      const penaltyQueue = new Array(restartBurst).fill(topicId);
+      const penaltyQueue = Array.from({ length: restartBurst }, () => createDrillQueueEntry(topicId, 0));
       state.drill.queue.splice(state.drill.pointer + 1, 0, ...penaltyQueue);
       state.drill.message = `${topic.name} ${currentSection.name} で不正解。セクション先頭に戻して追加${restartBurst}問。`;
     }
@@ -2757,15 +2809,19 @@
     const idle = byId("drillIdle");
     const active = byId("drillActive");
     const questionPanel = byId("drillQuestionPanel");
-    const reviewPanel = byId("drillReviewPanel");
     const choicesWrap = byId("drillChoicesWrap");
     const nextBtn = byId("applyReviewResultBtn");
     const skipBtn = byId("skipBtn");
     const editBtn = byId("editCurrentQuestionBtn");
+    const resultInline = byId("drillResultInline");
+    const resultBadge = byId("drillResultBadge");
+    const explanationAccordion = byId("drillExplanationAccordion");
     const today = todayISO();
     const doneCount = state.drill.queue.length > 0
       ? Math.min(state.drill.pointer, state.drill.queue.length)
       : 0;
+    byId("drillRuleTop").textContent = `ルール: 各セクションを${state.settings.targetPerfectRounds}回連続満点でクリア。不正解でそのセクション先頭へ戻る。`;
+
     if (state.drill.active) {
       setGauge("drillGaugeFill", "drillGaugeLabel", doneCount, state.drill.queue.length, "0%");
     } else if (state.drill.startedAt === today && state.drill.queue.length > 0) {
@@ -2781,13 +2837,17 @@
       skipBtn.classList.remove("hidden");
       editBtn.classList.remove("hidden");
       byId("drillMessage").textContent = state.drill.message || "";
+      byId("drillPrevBtn").disabled = true;
+      byId("drillNavNextBtn").disabled = true;
       byId("drillProgress").textContent = "";
       byId("drillQuestion").textContent = "";
       byId("drillPrompt").textContent = "";
       choicesWrap.innerHTML = "";
-      byId("drillRule").textContent = "";
-      byId("drillResultLine").textContent = "";
-      byId("drillResultLine").classList.remove("okText", "ngText");
+      resultInline.classList.add("hidden");
+      resultBadge.textContent = "";
+      resultBadge.classList.remove("ok", "ng");
+      explanationAccordion.classList.add("hidden");
+      explanationAccordion.open = false;
       byId("drillChoiceLine").textContent = "";
       byId("drillAnswerLine").textContent = "";
       byId("drillExplanationLine").textContent = "";
@@ -2809,40 +2869,61 @@
 
     idle.classList.add("hidden");
     active.classList.remove("hidden");
+    questionPanel.classList.remove("hidden");
+    byId("drillPrevBtn").disabled = state.drill.pointer <= 0;
+    byId("drillNavNextBtn").disabled = false;
 
     const section = getCurrentSection(current.topic, current.questionNo);
     if (state.drill.singleMode) {
       byId("drillProgress").textContent = `進捗: ${Math.min(state.drill.pointer + 1, state.drill.queue.length)}/${state.drill.queue.length}（単問）`;
       byId("drillQuestion").textContent = `出題: ${current.topic.name} / ${section.name} / Q${current.questionNo}`;
-      byId("drillRule").textContent = "ルール: 単問モード。この1問だけ解いて終了します。";
+      byId("drillRuleTop").textContent = "ルール: 単問モード。この1問だけ解いて終了します。";
     } else {
       byId("drillProgress").textContent = `進捗: ${state.drill.pointer + 1} / ${state.drill.queue.length} 問`;
       byId("drillQuestion").textContent = `出題: ${current.topic.name} / ${section.name} / Q${current.questionNo} (${section.start}-${section.end})`;
-      byId("drillRule").textContent = `ルール: 各セクションを${state.settings.targetPerfectRounds}回連続満点でクリア。不正解でそのセクション先頭へ戻る。`;
     }
 
-    questionPanel.classList.remove("hidden");
     byId("drillPrompt").textContent = detail.prompt;
+    const showResult = state.drill.showExplanation && typeof state.drill.pendingResult === "boolean";
 
     choicesWrap.innerHTML = detail.choices
       .map((choice, index) => {
         const label = `${index + 1}. ${choice}`;
-        const disabled = state.drill.showExplanation ? "disabled" : "";
-        return `<button type="button" class="choiceBtn" data-choice-index="${index}" ${disabled}>${escapeHtml(label)}</button>`;
+        const disabled = showResult ? "disabled" : "";
+        let mark = "";
+        let markClass = "";
+        if (showResult) {
+          if (index === detail.correctIndex) {
+            mark = "○";
+            markClass = "ok";
+          } else if (index === state.drill.selectedChoice && state.drill.selectedChoice !== detail.correctIndex) {
+            mark = "×";
+            markClass = "ng";
+          }
+        }
+        return `
+          <button type="button" class="choiceBtn" data-choice-index="${index}" ${disabled}>
+            <span class="choiceText">${escapeHtml(label)}</span>
+            <span class="choiceMark ${markClass}">${mark}</span>
+          </button>
+        `;
       })
       .join("");
 
-    if (state.drill.showExplanation) {
-      reviewPanel.classList.remove("hidden");
+    if (showResult) {
+      const isCorrect = state.drill.pendingResult === true;
+      resultInline.classList.remove("hidden");
       nextBtn.classList.remove("hidden");
+      resultBadge.textContent = isCorrect ? "○ 正解" : "× 不正解";
+      resultBadge.classList.toggle("ok", isCorrect);
+      resultBadge.classList.toggle("ng", !isCorrect);
+      explanationAccordion.classList.remove("hidden");
+      explanationAccordion.open = true;
       skipBtn.classList.add("hidden");
       editBtn.classList.add("hidden");
-      const isCorrect = state.drill.pendingResult === true;
+
       const picked = detail.choices[state.drill.selectedChoice] || "未選択";
       const correct = detail.choices[detail.correctIndex] || "";
-      byId("drillResultLine").textContent = isCorrect ? "結果: 正解" : "結果: 不正解";
-      byId("drillResultLine").classList.toggle("okText", isCorrect);
-      byId("drillResultLine").classList.toggle("ngText", !isCorrect);
       byId("drillChoiceLine").textContent = `あなたの回答: ${picked} / 正解: ${correct}`;
       byId("drillAnswerLine").textContent = `正答根拠: ${detail.answer}`;
       byId("drillExplanationLine").textContent = `解説: ${detail.explanation}`;
@@ -2853,12 +2934,14 @@
       return;
     }
 
-    reviewPanel.classList.add("hidden");
+    resultInline.classList.add("hidden");
     nextBtn.classList.add("hidden");
+    resultBadge.textContent = "";
+    resultBadge.classList.remove("ok", "ng");
+    explanationAccordion.classList.add("hidden");
+    explanationAccordion.open = false;
     skipBtn.classList.remove("hidden");
     editBtn.classList.remove("hidden");
-    byId("drillResultLine").textContent = "";
-    byId("drillResultLine").classList.remove("okText", "ngText");
     byId("drillChoiceLine").textContent = "";
     byId("drillAnswerLine").textContent = "";
     byId("drillExplanationLine").textContent = "";
@@ -3173,28 +3256,37 @@
       return null;
     }
 
-    if (state.drill.singleMode) {
-      const topic = state.topics.find((item) => item.id === state.drill.singleTopicId);
-      if (!topic) {
-        return null;
-      }
-      return {
-        topic,
-        questionNo: clampQuestionNo(topic.id, state.drill.singleQuestionNo)
-      };
+    const queueItem = state.drill.queue[state.drill.pointer];
+    if (!queueItem) {
+      return null;
     }
-
-    const topicId = state.drill.queue[state.drill.pointer];
+    const topicId = typeof queueItem === "string"
+      ? queueItem
+      : String(queueItem.topicId || "");
     const topic = state.topics.find((item) => item.id === topicId);
     if (!topic) {
       return null;
     }
 
     const progress = state.progress[topic.id] || defaultProgress();
+    let questionNo = 0;
+    if (state.drill.singleMode) {
+      questionNo = clampQuestionNo(topic.id, state.drill.singleQuestionNo);
+      if (typeof queueItem === "object") {
+        queueItem.questionNo = questionNo;
+      }
+    } else if (typeof queueItem === "object" && queueItem.questionNo > 0) {
+      questionNo = clampQuestionNo(topic.id, queueItem.questionNo);
+    } else {
+      questionNo = clampQuestionNo(topic.id, progress.nextQuestion);
+      if (typeof queueItem === "object") {
+        queueItem.questionNo = questionNo;
+      }
+    }
 
     return {
       topic,
-      questionNo: clampQuestionNo(topic.id, progress.nextQuestion)
+      questionNo
     };
   }
 

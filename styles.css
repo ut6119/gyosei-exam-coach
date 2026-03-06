@@ -284,22 +284,42 @@ button.ng {
   white-space: pre-wrap;
 }
 
-#drillReviewPanel {
-  background: #f8fbff;
-}
-
-#drillQuestionPanel .row button,
-#drillReviewPanel .row button {
+#drillQuestionPanel .row button {
   flex: 1 1 150px;
 }
 
-#drillReviewPanel .note {
-  margin: 2px 0;
-  line-height: 1.25;
+#drillResultInline {
+  margin: 4px 0 8px;
 }
 
-#drillReviewPanel .questionHead {
-  margin: 2px 0 4px;
+#drillResultInline button {
+  flex: 0 0 auto;
+}
+
+.resultBadge {
+  font-weight: 700;
+}
+
+.resultBadge.ok {
+  color: var(--ok);
+}
+
+.resultBadge.ng {
+  color: var(--ng);
+}
+
+#drillExplanationAccordion {
+  background: #f8fbff;
+}
+
+#drillExplanationAccordion summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+#drillExplanationAccordion .note {
+  margin: 2px 0;
+  line-height: 1.25;
 }
 
 .choiceList {
@@ -309,22 +329,36 @@ button.ng {
 }
 
 .choiceBtn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   text-align: left;
   background: #ffffff;
   border: 1px solid var(--line);
 }
 
-.choiceBtn:hover {
-  border-color: var(--brand);
-  background: #f1f7ff;
+.choiceText {
+  flex: 1 1 auto;
 }
 
-#drillResultLine.okText {
+.choiceMark {
+  min-width: 1.2em;
+  text-align: center;
+  font-weight: 700;
+}
+
+.choiceMark.ok {
   color: var(--ok);
 }
 
-#drillResultLine.ngText {
+.choiceMark.ng {
   color: var(--ng);
+}
+
+.choiceBtn:hover {
+  border-color: var(--brand);
+  background: #f1f7ff;
 }
 
 .table {

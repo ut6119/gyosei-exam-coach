@@ -137,6 +137,7 @@
 
       <section class="card" id="drillCard">
         <h2>5. 反復ドリル</h2>
+        <p id="drillRuleTop" class="note"></p>
         <p class="note">流れ: 3択を選ぶ → 解説を見る → 次の問題へ</p>
         <div class="progressWrap">
           <div class="progressMeta">
@@ -150,26 +151,31 @@
         <div id="drillIdle">ドリル開始を押すと、ここに出題されます（編集なしでOK）。</div>
         <div id="drillActive" class="hidden">
           <p id="drillProgress"></p>
+          <div class="row">
+            <button id="drillPrevBtn" type="button">前の問題</button>
+            <button id="drillNavNextBtn" type="button">次の問題</button>
+          </div>
           <p id="drillQuestion" class="questionHead"></p>
 
           <div id="drillQuestionPanel" class="hidden">
             <p id="drillPrompt" class="questionBox"></p>
             <div id="drillChoicesWrap" class="choiceList"></div>
-            <p id="drillRule"></p>
-            <div class="row">
+            <div id="drillResultInline" class="row hidden">
+              <span id="drillResultBadge" class="resultBadge"></span>
               <button id="applyReviewResultBtn" type="button" class="hidden">次の問題へ</button>
+            </div>
+            <details id="drillExplanationAccordion" class="questionBox hidden" open>
+              <summary>解説（タップで開閉）</summary>
+              <p id="drillChoiceLine" class="note"></p>
+              <p id="drillAnswerLine" class="note"></p>
+              <p id="drillExplanationLine" class="note"></p>
+              <p id="drillPitfallLine" class="note"></p>
+              <p id="drillTermsLine" class="note"></p>
+            </details>
+            <div class="row">
               <button id="skipBtn" type="button">スキップ</button>
               <button id="editCurrentQuestionBtn" type="button">この問を編集</button>
             </div>
-          </div>
-
-          <div id="drillReviewPanel" class="questionBox hidden">
-            <p id="drillResultLine" class="questionHead"></p>
-            <p id="drillChoiceLine" class="note"></p>
-            <p id="drillAnswerLine" class="note"></p>
-            <p id="drillExplanationLine" class="note"></p>
-            <p id="drillPitfallLine" class="note"></p>
-            <p id="drillTermsLine" class="note"></p>
           </div>
         </div>
         <p id="drillMessage" class="note"></p>
