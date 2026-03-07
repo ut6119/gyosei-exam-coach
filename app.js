@@ -1247,6 +1247,8 @@
     describe: "記"
   };
 
+  const FORECAST_INSERT_INTERVAL = 12;
+
   let mockTimerId = null;
   let clockTimerId = null;
   let lastClockDate = "";
@@ -3835,7 +3837,7 @@
     }
 
     if (policyNote) {
-      policyNote.textContent = "注記: 予想問題は過去5年の傾向分析ベースのオリジナル問題であり、本試験の的中を保証するものではありません。";
+      policyNote.textContent = `注記: ドリルは過去5年傾向ベース問題を優先し、予想問題は約${FORECAST_INSERT_INTERVAL}問に1問の割合で挿入します（オリジナル問題）。`;
     }
   }
 
@@ -4069,7 +4071,7 @@
 
   function buildAutoChoiceDetail(topic, questionNo) {
     const safeQuestionNo = Math.max(1, Math.round(Number(questionNo) || 1));
-    const bank = buildTopicChoiceBank(topic.id);
+    const bank = resolveAutoChoiceBank(topic.id, safeQuestionNo);
     if (Array.isArray(bank) && bank.length > 0) {
       const picked = pickBankQuestionByNo(topic, bank, safeQuestionNo);
       const withVariant = applyGlobalUniquenessVariant(topic, safeQuestionNo, picked.entry);
@@ -4100,11 +4102,44 @@
     });
   }
 
-  function buildTopicChoiceBank(topicId) {
+  function getPastLikeChoiceBank(topicId) {
     const base = Array.isArray(PAST5_CHOICE_BANK[topicId]) ? PAST5_CHOICE_BANK[topicId] : [];
     const extra = Array.isArray(EXTRA_CHOICE_BANK_BY_TOPIC[topicId]) ? EXTRA_CHOICE_BANK_BY_TOPIC[topicId] : [];
-    const forecast = Array.isArray(PREDICTION_CHOICE_BANK_BY_TOPIC[topicId]) ? PREDICTION_CHOICE_BANK_BY_TOPIC[topicId] : [];
-    return [...base, ...extra, ...forecast];
+    return [...base, ...extra];
+  }
+
+  function getForecastChoiceBank(topicId) {
+    return Array.isArray(PREDICTION_CHOICE_BANK_BY_TOPIC[topicId]) ? PREDICTION_CHOICE_BANK_BY_TOPIC[topicId] : [];
+  }
+
+  function shouldUseForecastChoice(topicId, questionNo) {
+    const forecastBank = getForecastChoiceBank(topicId);
+    if (forecastBank.length === 0) {
+      return false;
+    }
+    const safeQuestionNo = Math.max(1, Math.round(Number(questionNo) || 1));
+    const qIndex = safeQuestionNo - 1;
+    const offset = seedFromString(topicId) % FORECAST_INSERT_INTERVAL;
+    return ((qIndex + offset) % FORECAST_INSERT_INTERVAL) === 0;
+  }
+
+  function resolveAutoChoiceBank(topicId, questionNo) {
+    const pastLike = getPastLikeChoiceBank(topicId);
+    const forecast = getForecastChoiceBank(topicId);
+    if (pastLike.length === 0 && forecast.length === 0) {
+      return [];
+    }
+    if (pastLike.length === 0) {
+      return forecast;
+    }
+    if (shouldUseForecastChoice(topicId, questionNo)) {
+      return forecast.length > 0 ? forecast : pastLike;
+    }
+    return pastLike;
+  }
+
+  function buildTopicChoiceBank(topicId) {
+    return [...getPastLikeChoiceBank(topicId), ...getForecastChoiceBank(topicId)];
   }
 
   function pickBankQuestionByNo(topic, bank, questionNo) {
@@ -4207,13 +4242,12 @@
     const answerCount = new Map();
 
     for (const topic of state.topics) {
-      const bank = buildTopicChoiceBank(topic.id);
-      if (!Array.isArray(bank) || bank.length === 0) {
-        continue;
-      }
-
       const totalQuestions = Math.max(1, Math.round(Number(topic.total) || 1));
       for (let questionNo = 1; questionNo <= totalQuestions; questionNo += 1) {
+        const bank = resolveAutoChoiceBank(topic.id, questionNo);
+        if (!Array.isArray(bank) || bank.length === 0) {
+          continue;
+        }
         const picked = pickBankQuestionByNo(topic, bank, questionNo);
         const entry = picked.entry || defaultQuestion();
         const promptKey = getBankEntryPromptKey(entry) || `prompt:${topic.id}:${picked.index}:${questionNo}`;
@@ -4236,8 +4270,9 @@
     return state.topics
       .map((topic) => {
         const total = Math.max(1, Math.round(Number(topic.total) || 1));
-        const bankLength = buildTopicChoiceBank(topic.id).length;
-        return `${topic.id}:${total}:${bankLength}`;
+        const pastLikeLength = getPastLikeChoiceBank(topic.id).length;
+        const forecastLength = getForecastChoiceBank(topic.id).length;
+        return `${topic.id}:${total}:${pastLikeLength}:${forecastLength}:${FORECAST_INSERT_INTERVAL}`;
       })
       .join("|");
   }
