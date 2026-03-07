@@ -3478,6 +3478,7 @@
       explanationAccordion.classList.add("hidden");
       explanationAccordion.open = false;
       byId("drillChoiceLine").textContent = "";
+      byId("drillEasyLine").textContent = "";
       byId("drillAnswerLine").textContent = "";
       byId("drillExplanationLine").textContent = "";
       byId("drillPitfallLine").textContent = "";
@@ -3554,6 +3555,7 @@
       const picked = detail.choices[state.drill.selectedChoice] || "未選択";
       const correct = detail.choices[detail.correctIndex] || "";
       byId("drillChoiceLine").textContent = `あなたの回答: ${picked} / 正解: ${correct}`;
+      byId("drillEasyLine").textContent = buildFriendlyDrillNote(current.topic, detail);
       byId("drillAnswerLine").textContent = `正答根拠: ${detail.answer}`;
       byId("drillExplanationLine").textContent = `解説: ${detail.explanation}`;
       byId("drillPitfallLine").textContent = `間違えやすい点: ${detail.pitfall}`;
@@ -3572,6 +3574,7 @@
     skipBtn.classList.remove("hidden");
     editBtn.classList.remove("hidden");
     byId("drillChoiceLine").textContent = "";
+    byId("drillEasyLine").textContent = "";
     byId("drillAnswerLine").textContent = "";
     byId("drillExplanationLine").textContent = "";
     byId("drillPitfallLine").textContent = "";
@@ -4152,6 +4155,29 @@
 
   function escapeRegex(value) {
     return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
+  function buildFriendlyDrillNote(topic, detail) {
+    let core = normalizePromptCore(detail && detail.prompt ? detail.prompt : "", topic)
+      .replace(/を指す用語として、?\s*最も適切なもの$/u, "")
+      .replace(/に関する記述として、?\s*最も適切なもの$/u, "")
+      .replace(/として、?\s*最も適切なもの$/u, "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    if (!core) {
+      return "かんたんに言うと、重要ポイントを短く確認する問題です。";
+    }
+
+    if (/申請.*相当期間.*処分.*しない/u.test(core)) {
+      return "かんたんに言うと、申請を出したのに、役所が長く返事をしない状態ってこと。";
+    }
+
+    if (/(状態|場合|場面|とき|時|手続|制度|訴訟)$/u.test(core)) {
+      return `かんたんに言うと、${core}ってこと。`;
+    }
+
+    return `かんたんに言うと、「${core}」を確認する問題です。`;
   }
 
   function getPastLikeChoiceBank(topicId) {
