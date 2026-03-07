@@ -1294,6 +1294,15 @@
     };
   }
 
+  function defaultQuestionStat() {
+    return {
+      attempts: 0,
+      correct: 0,
+      wrong: 0,
+      lastStudied: ""
+    };
+  }
+
   function defaultDrill() {
     return {
       active: false,
@@ -1310,6 +1319,19 @@
       singleTopicId: "",
       singleQuestionNo: 1,
       singleSectionName: ""
+    };
+  }
+
+  function defaultSinglePractice() {
+    return {
+      active: false,
+      topicId: "",
+      questionNo: 1,
+      sectionName: "",
+      showExplanation: false,
+      selectedChoice: -1,
+      pendingResult: null,
+      message: ""
     };
   }
 
@@ -1358,10 +1380,12 @@
     const topics = DEFAULT_TOPICS.map((topic) => ({ ...topic }));
     const progress = {};
     const questionBank = {};
+    const questionStats = {};
 
     for (const topic of topics) {
       progress[topic.id] = defaultProgress();
       questionBank[topic.id] = {};
+      questionStats[topic.id] = {};
     }
 
     return {
@@ -1375,6 +1399,7 @@
       topics,
       progress,
       questionBank,
+      questionStats,
       glossary: DEFAULT_GLOSSARY.map((item) => ({ ...item })),
       pitfallHeatmap: {},
       todayPlan: {
@@ -1382,6 +1407,7 @@
         tasks: []
       },
       drill: defaultDrill(),
+      singlePractice: defaultSinglePractice(),
       mock: defaultMock(),
       miniTest: defaultMiniTest(),
       trainingCycle: defaultTrainingCycle(),
@@ -1465,6 +1491,7 @@
       : fresh.topics;
     state.progress = state.progress && typeof state.progress === "object" ? state.progress : {};
     state.questionBank = state.questionBank && typeof state.questionBank === "object" ? state.questionBank : {};
+    state.questionStats = state.questionStats && typeof state.questionStats === "object" ? state.questionStats : {};
     state.glossary = Array.isArray(state.glossary) ? state.glossary : fresh.glossary;
     state.pitfallHeatmap = state.pitfallHeatmap && typeof state.pitfallHeatmap === "object"
       ? state.pitfallHeatmap
@@ -1473,6 +1500,9 @@
       ? state.todayPlan
       : fresh.todayPlan;
     state.drill = state.drill && typeof state.drill === "object" ? state.drill : defaultDrill();
+    state.singlePractice = state.singlePractice && typeof state.singlePractice === "object"
+      ? state.singlePractice
+      : defaultSinglePractice();
     state.mock = state.mock && typeof state.mock === "object" ? state.mock : defaultMock();
     state.miniTest = state.miniTest && typeof state.miniTest === "object" ? state.miniTest : defaultMiniTest();
     state.trainingCycle = state.trainingCycle && typeof state.trainingCycle === "object"
@@ -1559,6 +1589,30 @@
       }
     }
 
+    state.singlePractice.active = Boolean(state.singlePractice.active);
+    state.singlePractice.topicId = String(state.singlePractice.topicId || "");
+    state.singlePractice.questionNo = Math.max(1, Math.round(Number(state.singlePractice.questionNo) || 1));
+    state.singlePractice.sectionName = String(state.singlePractice.sectionName || "");
+    state.singlePractice.showExplanation = Boolean(state.singlePractice.showExplanation);
+    state.singlePractice.selectedChoice = Number.isInteger(state.singlePractice.selectedChoice)
+      ? state.singlePractice.selectedChoice
+      : -1;
+    if (state.singlePractice.selectedChoice < -1 || state.singlePractice.selectedChoice > 2) {
+      state.singlePractice.selectedChoice = -1;
+    }
+    if (typeof state.singlePractice.pendingResult !== "boolean") {
+      state.singlePractice.pendingResult = null;
+    }
+    state.singlePractice.message = String(state.singlePractice.message || "");
+    if (state.singlePractice.active) {
+      const singleTopic = state.topics.find((topic) => topic.id === state.singlePractice.topicId);
+      if (!singleTopic) {
+        state.singlePractice = defaultSinglePractice();
+      } else {
+        state.singlePractice.questionNo = clampQuestionNo(singleTopic.id, state.singlePractice.questionNo);
+      }
+    }
+
     if (!Array.isArray(state.mock.queue)) {
       state.mock.queue = [];
     }
@@ -1593,8 +1647,12 @@
       if (!state.questionBank[topic.id] || typeof state.questionBank[topic.id] !== "object") {
         state.questionBank[topic.id] = {};
       }
+      if (!state.questionStats[topic.id] || typeof state.questionStats[topic.id] !== "object") {
+        state.questionStats[topic.id] = {};
+      }
 
       normalizeQuestionBankForTopic(topic);
+      normalizeQuestionStatsForTopic(topic);
     }
 
     for (const topicId of Object.keys(state.progress)) {
@@ -1606,6 +1664,12 @@
     for (const topicId of Object.keys(state.questionBank)) {
       if (!existingTopicIds.has(topicId)) {
         delete state.questionBank[topicId];
+      }
+    }
+
+    for (const topicId of Object.keys(state.questionStats)) {
+      if (!existingTopicIds.has(topicId)) {
+        delete state.questionStats[topicId];
       }
     }
 
@@ -1706,6 +1770,33 @@
     }
   }
 
+  function normalizeQuestionStatsForTopic(topic) {
+    const stats = state.questionStats[topic.id];
+    for (const key of Object.keys(stats)) {
+      const questionNo = Number(key);
+      if (!Number.isInteger(questionNo) || questionNo < 1 || questionNo > topic.total) {
+        delete stats[key];
+        continue;
+      }
+      stats[key] = normalizeQuestionStat(stats[key]);
+    }
+  }
+
+  function normalizeQuestionStat(stat) {
+    const safe = { ...defaultQuestionStat(), ...(stat || {}) };
+    safe.attempts = Math.max(0, Math.round(Number(safe.attempts) || 0));
+    safe.correct = Math.max(0, Math.round(Number(safe.correct) || 0));
+    safe.wrong = Math.max(0, Math.round(Number(safe.wrong) || 0));
+    if (safe.correct > safe.attempts) {
+      safe.correct = safe.attempts;
+    }
+    if (safe.wrong > safe.attempts) {
+      safe.wrong = safe.attempts;
+    }
+    safe.lastStudied = String(safe.lastStudied || "");
+    return safe;
+  }
+
   function normalizeQuestion(question) {
     const safe = { ...defaultQuestion(), ...(question || {}) };
     safe.prompt = String(safe.prompt || "").trim();
@@ -1751,6 +1842,86 @@
     return safe;
   }
 
+  function getQuestionStat(topicId, questionNo) {
+    const topicStats = state.questionStats[topicId];
+    if (!topicStats || typeof topicStats !== "object") {
+      return defaultQuestionStat();
+    }
+    const key = String(Math.max(1, Math.round(Number(questionNo) || 1)));
+    const stat = topicStats[key];
+    if (!stat) {
+      return defaultQuestionStat();
+    }
+    return normalizeQuestionStat(stat);
+  }
+
+  function recordQuestionResult(topicId, questionNo, isCorrect) {
+    const topic = state.topics.find((entry) => entry.id === topicId);
+    if (!topic) {
+      return;
+    }
+    if (!state.questionStats[topicId] || typeof state.questionStats[topicId] !== "object") {
+      state.questionStats[topicId] = {};
+    }
+    const safeNo = clampQuestionNo(topicId, questionNo);
+    const key = String(safeNo);
+    const current = normalizeQuestionStat(state.questionStats[topicId][key]);
+    current.attempts += 1;
+    if (isCorrect) {
+      current.correct += 1;
+    } else {
+      current.wrong += 1;
+    }
+    current.lastStudied = todayISO();
+    state.questionStats[topicId][key] = current;
+  }
+
+  function resetTopicProgress(topicId) {
+    const topic = state.topics.find((entry) => entry.id === topicId);
+    if (!topic) {
+      return;
+    }
+    state.progress[topicId] = defaultProgress();
+    state.questionStats[topicId] = {};
+    state.todayPlan = { date: "", tasks: [] };
+    state.trainingCycle.pendingMiniTest = false;
+    state.trainingCycle.sectionClearsSinceMiniTest = 0;
+    if (state.singlePractice.active && state.singlePractice.topicId === topicId) {
+      state.singlePractice = defaultSinglePractice();
+    }
+  }
+
+  function resetSectionProgress(topicId, sectionIndex) {
+    const topic = state.topics.find((entry) => entry.id === topicId);
+    if (!topic) {
+      return;
+    }
+    const sections = getTopicSections(topic);
+    const safeIndex = Math.max(0, Math.min(sections.length - 1, Math.round(Number(sectionIndex) || 0)));
+    const section = sections[safeIndex];
+    if (!section) {
+      return;
+    }
+    const progress = state.progress[topicId] || defaultProgress();
+    progress.sectionClears = Math.min(progress.sectionClears, safeIndex);
+    progress.perfectRounds = 0;
+    progress.mastered = false;
+    progress.nextQuestion = section.start;
+    state.progress[topicId] = normalizeProgress(topic, progress);
+
+    if (!state.questionStats[topicId] || typeof state.questionStats[topicId] !== "object") {
+      state.questionStats[topicId] = {};
+    }
+    const stats = state.questionStats[topicId];
+    for (let questionNo = section.start; questionNo <= section.end; questionNo += 1) {
+      delete stats[String(questionNo)];
+    }
+
+    state.todayPlan = { date: "", tasks: [] };
+    state.trainingCycle.pendingMiniTest = false;
+    state.trainingCycle.sectionClearsSinceMiniTest = 0;
+  }
+
   function bindEvents() {
     byId("focusTabBar").addEventListener("click", onFocusTabClick);
     byId("homeNavGrid").addEventListener("click", onHomeNavClick);
@@ -1779,6 +1950,16 @@
     byId("applyReviewResultBtn").addEventListener("click", onApplyReviewResult);
     byId("skipBtn").addEventListener("click", onSkipDrillQuestion);
     byId("editCurrentQuestionBtn").addEventListener("click", onEditCurrentQuestion);
+    byId("drillResetSectionBtn").addEventListener("click", onDrillResetSectionProgress);
+    byId("drillResetTopicBtn").addEventListener("click", onDrillResetTopicProgress);
+
+    byId("singlePrevBtn").addEventListener("click", onSinglePrevQuestion);
+    byId("singleNextBtn").addEventListener("click", onSingleNextQuestion);
+    byId("singleChoicesWrap").addEventListener("click", onSingleChoiceClick);
+    byId("singleApplyBtn").addEventListener("click", onSingleApplyResult);
+    byId("singleResetSectionBtn").addEventListener("click", onSingleResetSectionProgress);
+    byId("singleResetTopicBtn").addEventListener("click", onSingleResetTopicProgress);
+    byId("singleCloseBtn").addEventListener("click", onSingleClose);
 
     byId("topicsTableWrap").addEventListener("click", onTopicsTableClick);
     byId("topicsTableWrap").addEventListener("change", onTopicsTableChange);
@@ -2220,6 +2401,7 @@
     state.topics.push(topic);
     state.progress[topic.id] = defaultProgress();
     state.questionBank[topic.id] = {};
+    state.questionStats[topic.id] = {};
 
     byId("newTopicName").value = "";
     byId("newTopicCount").value = "";
@@ -2253,6 +2435,7 @@
       state.topics = state.topics.filter((topic) => topic.id !== topicId);
       delete state.progress[topicId];
       delete state.questionBank[topicId];
+      delete state.questionStats[topicId];
 
       for (const key of Object.keys(state.pitfallHeatmap)) {
         if (key.startsWith(`${topicId}:`)) {
@@ -2269,6 +2452,9 @@
       if (state.miniTest.active) {
         finishMiniTest("問題セット変更のため小テストを終了しました。");
       }
+      if (state.singlePractice.active && state.singlePractice.topicId === topicId) {
+        state.singlePractice = defaultSinglePractice();
+      }
 
       state.todayPlan = { date: "", tasks: [] };
 
@@ -2283,8 +2469,7 @@
     }
 
     if (target.dataset.action === "reset") {
-      state.progress[topicId] = defaultProgress();
-      state.todayPlan = { date: "", tasks: [] };
+      resetTopicProgress(topicId);
       saveState();
       renderAll();
     }
@@ -2316,11 +2501,15 @@
       topic.total = Math.round(value);
       state.progress[topicId] = normalizeProgress(topic, state.progress[topicId]);
       normalizeQuestionBankForTopic(topic);
+      normalizeQuestionStatsForTopic(topic);
 
       state.todayPlan = { date: "", tasks: [] };
 
       if (state.questionEditor.topicId === topicId) {
         state.questionEditor.questionNo = clampQuestionNo(topicId, state.questionEditor.questionNo);
+      }
+      if (state.singlePractice.active && state.singlePractice.topicId === topicId) {
+        state.singlePractice.questionNo = clampQuestionNo(topicId, state.singlePractice.questionNo);
       }
 
       saveState();
@@ -2350,22 +2539,32 @@
     }
 
     const action = button.dataset.action;
-    if (action !== "single") {
-      return;
-    }
-
     const topicId = String(button.dataset.topicId || "");
-    const questionNo = Number(button.dataset.questionNo);
-    const sectionName = String(button.dataset.sectionName || "");
-
-    if (!topicId || !Number.isInteger(questionNo)) {
+    if (action === "single") {
+      const questionNo = Number(button.dataset.questionNo);
+      const sectionName = String(button.dataset.sectionName || "");
+      if (!topicId || !Number.isInteger(questionNo)) {
+        return;
+      }
+      startSingleQuestionPractice(topicId, questionNo, sectionName);
       return;
     }
 
-    startSingleQuestionDrill(topicId, questionNo, sectionName);
+    if (action === "reset-section") {
+      const sectionIndex = Math.max(0, Math.round(Number(button.dataset.sectionIndex) || 0));
+      if (!topicId) {
+        return;
+      }
+      if (!confirm("このセクションの進捗をリセットします。よろしいですか？")) {
+        return;
+      }
+      resetSectionProgress(topicId, sectionIndex);
+      saveState();
+      renderAll();
+    }
   }
 
-  function startSingleQuestionDrill(topicId, questionNo, sectionName) {
+  function startSingleQuestionPractice(topicId, questionNo, sectionName) {
     const topic = state.topics.find((item) => item.id === topicId);
     if (!topic) {
       return;
@@ -2380,22 +2579,18 @@
     }
 
     const safeQuestionNo = clampQuestionNo(topic.id, questionNo);
-    state.drill = {
-      ...defaultDrill(),
+    state.singlePractice = {
+      ...defaultSinglePractice(),
       active: true,
-      queue: [createDrillQueueEntry(topic.id, safeQuestionNo)],
-      pointer: 0,
-      startedAt: todayISO(),
-      message: `${topic.name} Q${safeQuestionNo} の単問演習を開始。3択→解説の順で進めます。`,
-      singleMode: true,
-      singleTopicId: topic.id,
-      singleQuestionNo: safeQuestionNo,
-      singleSectionName: sectionName || ""
+      topicId: topic.id,
+      questionNo: safeQuestionNo,
+      sectionName: sectionName || "",
+      message: `${topic.name} Q${safeQuestionNo} の個別演習を開始しました。`
     };
 
     saveState();
-    renderAll();
-    byId("drillCard").scrollIntoView({ behavior: "smooth", block: "start" });
+    renderSinglePractice();
+    byId("singleQuestionCard").scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   function onTodayPreviewClick(event) {
@@ -2472,6 +2667,10 @@
   }
 
   function onStartDrill() {
+    if (state.singlePractice.active) {
+      alert("個別問題演習が開いています。先に閉じてからドリルを開始してください。");
+      return;
+    }
     if (state.mock.active) {
       alert("模試が進行中です。先に模試を終了してください。");
       return;
@@ -2662,6 +2861,172 @@
     renderQuestionEditor();
   }
 
+  function onDrillResetSectionProgress() {
+    const current = getCurrentDrillQuestionContext();
+    if (!current) {
+      alert("ドリル開始後に実行してください。");
+      return;
+    }
+    const section = getCurrentSection(current.topic, current.questionNo);
+    if (!confirm(`${current.topic.name} ${section.name} の進捗をリセットしますか？`)) {
+      return;
+    }
+    resetSectionProgress(current.topic.id, section.index);
+    state.drill.message = `${current.topic.name} ${section.name} の進捗をリセットしました。`;
+    saveState();
+    renderAll();
+  }
+
+  function onDrillResetTopicProgress() {
+    const current = getCurrentDrillQuestionContext();
+    if (!current) {
+      alert("ドリル開始後に実行してください。");
+      return;
+    }
+    if (!confirm(`${current.topic.name} の進捗を全リセットしますか？`)) {
+      return;
+    }
+    resetTopicProgress(current.topic.id);
+    state.drill = {
+      ...defaultDrill(),
+      message: `${current.topic.name} の進捗をリセットしました。`
+    };
+    saveState();
+    renderAll();
+  }
+
+  function getCurrentSingleQuestionContext() {
+    if (!state.singlePractice.active) {
+      return null;
+    }
+    const topic = state.topics.find((item) => item.id === state.singlePractice.topicId);
+    if (!topic) {
+      return null;
+    }
+    const questionNo = clampQuestionNo(topic.id, state.singlePractice.questionNo);
+    return { topic, questionNo };
+  }
+
+  function onSinglePrevQuestion() {
+    const current = getCurrentSingleQuestionContext();
+    if (!current) {
+      return;
+    }
+    state.singlePractice.questionNo = clampQuestionNo(current.topic.id, current.questionNo - 1);
+    state.singlePractice.showExplanation = false;
+    state.singlePractice.selectedChoice = -1;
+    state.singlePractice.pendingResult = null;
+    state.singlePractice.message = "前の問題へ移動しました。";
+    saveState();
+    renderSinglePractice();
+  }
+
+  function onSingleNextQuestion() {
+    const current = getCurrentSingleQuestionContext();
+    if (!current) {
+      return;
+    }
+    state.singlePractice.questionNo = clampQuestionNo(current.topic.id, current.questionNo + 1);
+    state.singlePractice.showExplanation = false;
+    state.singlePractice.selectedChoice = -1;
+    state.singlePractice.pendingResult = null;
+    state.singlePractice.message = "次の問題へ移動しました。";
+    saveState();
+    renderSinglePractice();
+  }
+
+  function onSingleChoiceClick(event) {
+    const current = getCurrentSingleQuestionContext();
+    if (!current) {
+      return;
+    }
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+    const button = target.closest("button[data-choice-index]");
+    if (!(button instanceof HTMLButtonElement)) {
+      return;
+    }
+    const picked = Number(button.dataset.choiceIndex);
+    if (!Number.isInteger(picked) || picked < 0 || picked > 2) {
+      return;
+    }
+
+    const detail = getQuestionDetail(current.topic.id, current.questionNo, false);
+    state.singlePractice.selectedChoice = picked;
+    state.singlePractice.pendingResult = picked === detail.correctIndex;
+    state.singlePractice.showExplanation = true;
+    state.singlePractice.message = "解説を確認して結果を確定してください。";
+    saveState();
+    renderSinglePractice();
+  }
+
+  function onSingleApplyResult() {
+    const current = getCurrentSingleQuestionContext();
+    if (!current) {
+      return;
+    }
+    if (!state.singlePractice.showExplanation || typeof state.singlePractice.pendingResult !== "boolean") {
+      state.singlePractice.message = "先に選択肢を選んでください。";
+      saveState();
+      renderSinglePractice();
+      return;
+    }
+
+    const isCorrect = state.singlePractice.pendingResult === true;
+    recordQuestionResult(current.topic.id, current.questionNo, isCorrect);
+    if (!isCorrect) {
+      const heatKey = `${current.topic.id}:${current.questionNo}`;
+      state.pitfallHeatmap[heatKey] = (state.pitfallHeatmap[heatKey] || 0) + 1;
+    }
+    state.singlePractice.message = isCorrect
+      ? `${current.topic.name} Q${current.questionNo}: 正解です。`
+      : `${current.topic.name} Q${current.questionNo}: 不正解です。`;
+    state.singlePractice.showExplanation = false;
+    state.singlePractice.selectedChoice = -1;
+    state.singlePractice.pendingResult = null;
+    saveState();
+    renderAll();
+  }
+
+  function onSingleResetSectionProgress() {
+    const current = getCurrentSingleQuestionContext();
+    if (!current) {
+      alert("問題メニューから個別問題を開いてください。");
+      return;
+    }
+    const section = getCurrentSection(current.topic, current.questionNo);
+    if (!confirm(`${current.topic.name} ${section.name} の進捗をリセットしますか？`)) {
+      return;
+    }
+    resetSectionProgress(current.topic.id, section.index);
+    state.singlePractice.message = `${current.topic.name} ${section.name} の進捗をリセットしました。`;
+    saveState();
+    renderAll();
+  }
+
+  function onSingleResetTopicProgress() {
+    const current = getCurrentSingleQuestionContext();
+    if (!current) {
+      alert("問題メニューから個別問題を開いてください。");
+      return;
+    }
+    if (!confirm(`${current.topic.name} の進捗を全リセットしますか？`)) {
+      return;
+    }
+    resetTopicProgress(current.topic.id);
+    state.singlePractice.message = `${current.topic.name} の進捗をリセットしました。`;
+    saveState();
+    renderAll();
+  }
+
+  function onSingleClose() {
+    state.singlePractice = defaultSinglePractice();
+    saveState();
+    renderSinglePractice();
+  }
+
   function applyDrillResult(isCorrect) {
     if (!state.drill.active) {
       return;
@@ -2695,6 +3060,7 @@
     const progress = state.progress[topicId] || defaultProgress();
     const questionNo = current.questionNo;
     const currentSection = getCurrentSection(topic, questionNo);
+    recordQuestionResult(topicId, questionNo, isCorrect);
     progress.attempts += 1;
     progress.lastStudied = todayISO();
 
@@ -2919,6 +3285,10 @@
       alert("模試が進行中です。終了してから再開してください。");
       return;
     }
+    if (state.singlePractice.active) {
+      alert("個別問題演習が開いています。先に閉じてください。");
+      return;
+    }
     if (state.drill.active) {
       alert("反復ドリルが進行中です。先にドリルを終了してください。");
       return;
@@ -3000,8 +3370,10 @@
     if (kind === "correct") {
       state.mock.correctCount += 1;
       state.mock.score += item.points;
+      recordQuestionResult(item.topicId, item.questionNo, true);
     } else if (kind === "wrong") {
       state.mock.wrongCount += 1;
+      recordQuestionResult(item.topicId, item.questionNo, false);
       const heatKey = `${item.topicId}:${item.questionNo}`;
       state.pitfallHeatmap[heatKey] = (state.pitfallHeatmap[heatKey] || 0) + 1;
     } else {
@@ -3024,6 +3396,10 @@
   function onStartMiniTest() {
     if (state.miniTest.active) {
       alert("小テストが進行中です。");
+      return;
+    }
+    if (state.singlePractice.active) {
+      alert("個別問題演習が開いています。先に閉じてください。");
       return;
     }
     if (state.drill.active) {
@@ -3088,6 +3464,7 @@
 
     const detail = getQuestionDetail(item.topicId, item.questionNo, false);
     const isCorrect = picked === detail.correctIndex;
+    recordQuestionResult(item.topicId, item.questionNo, isCorrect);
 
     if (isCorrect) {
       state.miniTest.correctCount += 1;
@@ -3342,6 +3719,7 @@
     renderDashboard();
     renderSettings();
     renderProblemMenu();
+    renderSinglePractice();
     renderTopics();
     renderTodayPlan();
     renderPrimerBook();
@@ -3565,6 +3943,8 @@
             const sectionOpen = topic.id === firstActiveTopicId && isCurrent ? "open" : "";
             const summaryClass = `sectionFoldSummary${isCleared ? " done" : ""}`;
             const sectionGauge = getSectionGaugeProgress(topic, progress, section);
+            let solvedCount = 0;
+            let attemptedCount = 0;
             const miniHint = state.trainingCycle.pendingMiniTest
               ? "先に小テスト"
               : isCleared
@@ -3574,15 +3954,26 @@
                   : `小テストまであと${miniLeft}`;
             const chips = [];
             for (let questionNo = section.start; questionNo <= section.end; questionNo += 1) {
+              const stat = getQuestionStat(topic.id, questionNo);
+              const isSolved = stat.correct > 0;
+              const isAttempted = stat.attempts > 0;
+              if (isSolved) {
+                solvedCount += 1;
+              }
+              if (isAttempted) {
+                attemptedCount += 1;
+              }
+              const chipClass = `questionChip${isSolved ? " done" : isAttempted ? " weak" : ""}`;
+              const chipLabel = isSolved ? `★Q${questionNo}` : isAttempted ? `△Q${questionNo}` : `Q${questionNo}`;
               chips.push(`
                 <button
                   type="button"
-                  class="questionChip"
+                  class="${chipClass}"
                   data-action="single"
                   data-topic-id="${escapeAttr(topic.id)}"
                   data-question-no="${questionNo}"
                   data-section-name="${escapeAttr(section.name)}"
-                >Q${questionNo}</button>
+                >${chipLabel}</button>
               `);
             }
 
@@ -3590,11 +3981,19 @@
               <details class="sectionFold" ${sectionOpen}>
                 <summary class="${summaryClass}">
                   <span class="sectionFoldTitle">${isCleared ? "★" : "☆"} S${sectionNo} ${escapeHtml(section.name)}</span>
-                  <span class="sectionFoldMeta">Q${section.start}-${section.end} / ${count}問 / 周回進捗 ${sectionGauge.done}/${sectionGauge.total} (${sectionGauge.percent}%) / ${miniHint}</span>
+                  <span class="sectionFoldMeta">Q${section.start}-${section.end} / ${count}問 / 周回進捗 ${sectionGauge.done}/${sectionGauge.total} (${sectionGauge.percent}%) / 個別演習 正解済み ${solvedCount}/${count}（回答 ${attemptedCount}/${count}） / ${miniHint}</span>
                   <span class="summaryGauge"><span class="summaryGaugeFill" style="width: ${sectionGauge.percent}%"></span></span>
                 </summary>
                 <div class="sectionFoldBody">
                   <div class="questionChipWrap">${chips.join("")}</div>
+                  <div class="row">
+                    <button
+                      type="button"
+                      data-action="reset-section"
+                      data-topic-id="${escapeAttr(topic.id)}"
+                      data-section-index="${section.index}"
+                    >このセクション進捗をリセット</button>
+                  </div>
                 </div>
               </details>
             `;
@@ -3627,6 +4026,100 @@
         `;
       })
       .join("");
+  }
+
+  function renderSinglePractice() {
+    const idle = byId("singleIdle");
+    const active = byId("singleActive");
+    const choicesWrap = byId("singleChoicesWrap");
+    const applyBtn = byId("singleApplyBtn");
+    const resultBadge = byId("singleResultBadge");
+    const explanation = byId("singleExplanationAccordion");
+
+    if (!state.singlePractice.active) {
+      idle.classList.remove("hidden");
+      active.classList.add("hidden");
+      byId("singleMessage").textContent = state.singlePractice.message || "";
+      return;
+    }
+
+    const current = getCurrentSingleQuestionContext();
+    if (!current) {
+      state.singlePractice = defaultSinglePractice();
+      saveState();
+      idle.classList.remove("hidden");
+      active.classList.add("hidden");
+      byId("singleMessage").textContent = "個別演習を終了しました。";
+      return;
+    }
+
+    const detail = getQuestionDetail(current.topic.id, current.questionNo, false);
+    const section = getCurrentSection(current.topic, current.questionNo);
+    const stat = getQuestionStat(current.topic.id, current.questionNo);
+
+    idle.classList.add("hidden");
+    active.classList.remove("hidden");
+    byId("singleQuestionHead").textContent = `${current.topic.name} / ${section.name} / Q${current.questionNo}`;
+    byId("singleProgress").textContent = `個別演習: Q${current.questionNo}/${current.topic.total} / この問題の実績 正解${stat.correct}・誤答${stat.wrong}`;
+    byId("singlePrompt").textContent = detail.prompt;
+    byId("singlePrevBtn").disabled = current.questionNo <= 1;
+    byId("singleNextBtn").disabled = current.questionNo >= current.topic.total;
+
+    const showResult = state.singlePractice.showExplanation && typeof state.singlePractice.pendingResult === "boolean";
+    choicesWrap.innerHTML = detail.choices
+      .map((choice, index) => {
+        const label = `${index + 1}. ${choice}`;
+        const disabled = showResult ? "disabled" : "";
+        let mark = "";
+        let markClass = "";
+        if (showResult) {
+          if (index === detail.correctIndex) {
+            mark = "○";
+            markClass = "ok";
+          } else if (index === state.singlePractice.selectedChoice && state.singlePractice.selectedChoice !== detail.correctIndex) {
+            mark = "×";
+            markClass = "ng";
+          }
+        }
+        return `
+          <button type="button" class="choiceBtn" data-choice-index="${index}" ${disabled}>
+            <span class="choiceText">${escapeHtml(label)}</span>
+            <span class="choiceMark ${markClass}">${mark}</span>
+          </button>
+        `;
+      })
+      .join("");
+
+    if (showResult) {
+      const isCorrect = state.singlePractice.pendingResult === true;
+      resultBadge.textContent = isCorrect ? "○ 正解" : "× 不正解";
+      resultBadge.classList.toggle("ok", isCorrect);
+      resultBadge.classList.toggle("ng", !isCorrect);
+      applyBtn.classList.remove("hidden");
+      explanation.classList.remove("hidden");
+      explanation.open = true;
+
+      const picked = detail.choices[state.singlePractice.selectedChoice] || "未選択";
+      const correct = detail.choices[detail.correctIndex] || "";
+      byId("singleChoiceLine").textContent = `あなたの回答: ${picked} / 正解: ${correct}`;
+      byId("singleEasyLine").textContent = buildFriendlyDrillNote(current.topic, detail);
+      byId("singleAnswerLine").textContent = `正答根拠: ${enhanceAnswerLine(detail.answer, detail)}`;
+      byId("singleExplanationLine").textContent = `解説: ${enhanceExplanationLine(detail.explanation, detail)}`;
+      byId("singlePitfallLine").textContent = `間違えやすい点: ${enhancePitfallLine(detail.pitfall, detail)}`;
+    } else {
+      resultBadge.textContent = "";
+      resultBadge.classList.remove("ok", "ng");
+      applyBtn.classList.add("hidden");
+      explanation.classList.add("hidden");
+      explanation.open = false;
+      byId("singleChoiceLine").textContent = "";
+      byId("singleEasyLine").textContent = "";
+      byId("singleAnswerLine").textContent = "";
+      byId("singleExplanationLine").textContent = "";
+      byId("singlePitfallLine").textContent = "";
+    }
+
+    byId("singleMessage").textContent = state.singlePractice.message || "選択肢を選んで解説を確認してください。";
   }
 
   function renderTodayPlan() {
@@ -3785,6 +4278,8 @@
       byId("drillMessage").textContent = state.drill.message || "";
       byId("drillPrevBtn").disabled = true;
       byId("drillNavNextBtn").disabled = true;
+      byId("drillResetSectionBtn").disabled = true;
+      byId("drillResetTopicBtn").disabled = true;
       byId("drillProgress").textContent = "";
       byId("drillQuestion").textContent = "";
       byId("drillPrompt").textContent = "";
@@ -3819,6 +4314,8 @@
     questionPanel.classList.remove("hidden");
     byId("drillPrevBtn").disabled = state.drill.pointer <= 0;
     byId("drillNavNextBtn").disabled = false;
+    byId("drillResetSectionBtn").disabled = false;
+    byId("drillResetTopicBtn").disabled = false;
 
     const section = getCurrentSection(current.topic, current.questionNo);
     if (state.drill.singleMode) {
@@ -3873,9 +4370,9 @@
       const correct = detail.choices[detail.correctIndex] || "";
       byId("drillChoiceLine").textContent = `あなたの回答: ${picked} / 正解: ${correct}`;
       byId("drillEasyLine").textContent = buildFriendlyDrillNote(current.topic, detail);
-      byId("drillAnswerLine").textContent = `正答根拠: ${detail.answer}`;
-      byId("drillExplanationLine").textContent = `解説: ${detail.explanation}`;
-      byId("drillPitfallLine").textContent = `間違えやすい点: ${detail.pitfall}`;
+      byId("drillAnswerLine").textContent = `正答根拠: ${enhanceAnswerLine(detail.answer, detail)}`;
+      byId("drillExplanationLine").textContent = `解説: ${enhanceExplanationLine(detail.explanation, detail)}`;
+      byId("drillPitfallLine").textContent = `間違えやすい点: ${enhancePitfallLine(detail.pitfall, detail)}`;
       const trendTail = detail.trendTag ? ` / ${detail.trendTag}` : "";
       byId("drillTermsLine").textContent = `関連用語: ${detail.terms.join(" / ")}${trendTail}`;
       byId("drillMessage").textContent = state.drill.message || "解説を確認したら次の問題へ進んでください。";
@@ -4497,6 +4994,55 @@
     return `かんたんに言うと、「${core}」を確認する問題です。`;
   }
 
+  function enhanceAnswerLine(answer, detail) {
+    return appendSupplementText(answer, buildDeepDiveSupplement(detail));
+  }
+
+  function enhanceExplanationLine(explanation, detail) {
+    return appendSupplementText(explanation, buildDeepDiveSupplement(detail));
+  }
+
+  function enhancePitfallLine(pitfall, detail) {
+    return appendSupplementText(pitfall, buildPitfallSupplement(detail));
+  }
+
+  function appendSupplementText(base, supplement) {
+    const main = String(base || "").trim();
+    const extra = String(supplement || "").trim();
+    if (!extra) {
+      return main;
+    }
+    if (!main) {
+      return extra;
+    }
+    if (main.includes(extra)) {
+      return main;
+    }
+    return `${main} ${extra}`;
+  }
+
+  function buildDeepDiveSupplement(detail) {
+    const corpus = `${String(detail && detail.answer || "")} ${String(detail && detail.explanation || "")} ${String(detail && detail.pitfall || "")} ${String(detail && detail.trendTag || "")}`;
+    if (/国家賠償法1条と2条/u.test(corpus) || /国家賠償法2条/u.test(corpus)) {
+      return "補足: 国家賠償法1条は公務員の違法な職務行為で生じた損害、2条は道路など公の営造物の設置・管理の瑕疵で生じた損害を対象とする。";
+    }
+    if (/取消訴訟と無効等確認訴訟/u.test(corpus)) {
+      return "補足: 取消訴訟は既にされた処分の効力を取り消す訴え、無効等確認訴訟は重大かつ明白な瑕疵による無効を確認する訴えとして整理する。";
+    }
+    if (/差止訴訟.*義務付け訴訟|義務付け訴訟.*差止訴訟/u.test(corpus)) {
+      return "補足: 義務付け訴訟は『処分をしてもらう』、差止訴訟は『違法処分を止める』という向きの違いで区別する。";
+    }
+    return "";
+  }
+
+  function buildPitfallSupplement(detail) {
+    const corpus = `${String(detail && detail.answer || "")} ${String(detail && detail.explanation || "")} ${String(detail && detail.pitfall || "")} ${String(detail && detail.trendTag || "")}`;
+    if (/国家賠償法1条と2条/u.test(corpus) || /国家賠償法2条/u.test(corpus)) {
+      return "1条=公務員行為、2条=営造物瑕疵、の対応で覚えると混同しにくい。";
+    }
+    return "";
+  }
+
   function getPastLikeChoiceBank(topicId) {
     const base = Array.isArray(PAST5_CHOICE_BANK[topicId]) ? PAST5_CHOICE_BANK[topicId] : [];
     const extra = Array.isArray(EXTRA_CHOICE_BANK_BY_TOPIC[topicId]) ? EXTRA_CHOICE_BANK_BY_TOPIC[topicId] : [];
@@ -4857,8 +5403,9 @@
             <span class="primerSentence">${escapeHtml(buildPreStudySentence(topic, section, questionNo, detail))}</span>
           </summary>
           <div class="primerQuestionBody">
-            <p class="note">正答根拠: ${escapeHtml(detail.answer)}</p>
-            <p class="note">間違えやすい点: ${escapeHtml(detail.pitfall)}</p>
+            <p class="note">正答根拠: ${escapeHtml(enhanceAnswerLine(detail.answer, detail))}</p>
+            <p class="note">解説: ${escapeHtml(enhanceExplanationLine(detail.explanation, detail))}</p>
+            <p class="note">間違えやすい点: ${escapeHtml(enhancePitfallLine(detail.pitfall, detail))}</p>
           </div>
         </details>
       `);

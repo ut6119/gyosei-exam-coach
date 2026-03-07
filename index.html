@@ -51,6 +51,7 @@
           <button type="button" class="homeNavBtn" data-target="dashboardCard"><span class="homeNum">1</span><span>本番カウント</span></button>
           <button type="button" class="homeNavBtn" data-target="settingsCard"><span class="homeNum">2</span><span>学習設定</span></button>
           <button type="button" class="homeNavBtn" data-target="problemMenuCard"><span class="homeNum">3</span><span>問題メニュー</span></button>
+          <button type="button" class="homeNavBtn" data-target="singleQuestionCard"><span class="homeNum">3.5</span><span>個別問題演習</span></button>
           <button type="button" class="homeNavBtn" data-target="todayPlanCard"><span class="homeNum">4</span><span>今日のプラン</span></button>
           <button type="button" class="homeNavBtn" data-target="primerBookCard"><span class="homeNum">4.5</span><span>予習ページ</span></button>
           <button type="button" class="homeNavBtn" data-target="drillCard"><span class="homeNum">5</span><span>反復ドリル</span></button>
@@ -133,9 +134,43 @@
 
       <section class="card" id="problemMenuCard">
         <h2>3. 問題メニュー</h2>
-        <p class="note">法別 → セクション番号 → 問題番号 の順で開きます。Q番号を押すとその1問だけ演習できます。</p>
+        <p class="note">法別 → セクション番号 → 問題番号 の順で開きます。Q番号を押すと「3.5 個別問題演習」に移動します（ドリル進行は維持）。</p>
         <div id="problemMenuSummary" class="summaryBox"></div>
         <div id="problemMenuList" class="sectionMenuList"></div>
+      </section>
+
+      <section class="card" id="singleQuestionCard">
+        <h2>3.5 個別問題演習</h2>
+        <p class="note">問題メニューから選んだ1問をここで解きます。ドリルのキューはリセットされません。</p>
+        <div id="singleIdle">問題メニューでQ番号をタップすると、ここに表示されます。</div>
+        <div id="singleActive" class="hidden">
+          <p id="singleProgress"></p>
+          <p id="singleQuestionHead" class="questionHead"></p>
+          <div class="row">
+            <button id="singlePrevBtn" type="button">前の問題</button>
+            <button id="singleNextBtn" type="button">次の問題</button>
+            <button id="singleCloseBtn" type="button">個別演習を閉じる</button>
+          </div>
+          <p id="singlePrompt" class="questionBox"></p>
+          <div id="singleChoicesWrap" class="choiceList"></div>
+          <div id="singleResultInline" class="row">
+            <span id="singleResultBadge" class="resultBadge"></span>
+            <button id="singleApplyBtn" type="button" class="hidden">結果を確定</button>
+          </div>
+          <details id="singleExplanationAccordion" class="questionBox hidden" open>
+            <summary>解説（タップで開閉）</summary>
+            <p id="singleChoiceLine" class="note"></p>
+            <p id="singleEasyLine" class="note"></p>
+            <p id="singleAnswerLine" class="note"></p>
+            <p id="singleExplanationLine" class="note"></p>
+            <p id="singlePitfallLine" class="note"></p>
+          </details>
+          <div class="row">
+            <button id="singleResetSectionBtn" type="button">このセクション進捗をリセット</button>
+            <button id="singleResetTopicBtn" type="button">この分野進捗をリセット</button>
+          </div>
+        </div>
+        <p id="singleMessage" class="note"></p>
       </section>
 
       <section class="card" id="topicsCard">
@@ -209,6 +244,8 @@
           <div class="row">
             <button id="drillPrevBtn" type="button">前の問題</button>
             <button id="drillNavNextBtn" type="button">次の問題</button>
+            <button id="drillResetSectionBtn" type="button">現在セクション進捗リセット</button>
+            <button id="drillResetTopicBtn" type="button">この分野進捗リセット</button>
           </div>
           <p id="drillQuestion" class="questionHead"></p>
 

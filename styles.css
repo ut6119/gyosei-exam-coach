@@ -178,6 +178,7 @@ body {
 }
 
 #problemMenuCard,
+#singleQuestionCard,
 #topicsCard,
 #questionEditorCard {
   --card-accent: #4f739d;
@@ -221,17 +222,18 @@ body {
 #dashboardCard { order: 0; }
 #settingsCard { order: 2; }
 #problemMenuCard { order: 3; }
-#todayPlanCard { order: 4; }
-#primerBookCard { order: 5; }
-#drillCard { order: 6; }
-#miniTestCard { order: 7; }
-#mockExamCard { order: 8; }
-#glossaryCard { order: 9; }
-#pitfallsCard { order: 10; }
-#curriculumCard { order: 11; }
-#researchCard { order: 12; }
-#topicsCard { order: 13; }
-#questionEditorCard { order: 14; }
+#singleQuestionCard { order: 4; }
+#todayPlanCard { order: 5; }
+#primerBookCard { order: 6; }
+#drillCard { order: 7; }
+#miniTestCard { order: 8; }
+#mockExamCard { order: 9; }
+#glossaryCard { order: 10; }
+#pitfallsCard { order: 11; }
+#curriculumCard { order: 12; }
+#researchCard { order: 13; }
+#topicsCard { order: 14; }
+#questionEditorCard { order: 15; }
 
 .card h2 {
   display: flex;
@@ -262,6 +264,7 @@ body {
 #dashboardCard h2::before { content: "⏱"; }
 #settingsCard h2::before { content: "⚙"; }
 #problemMenuCard h2::before { content: "☰"; }
+#singleQuestionCard h2::before { content: "◎"; }
 #todayPlanCard h2::before { content: "✓"; }
 #primerBookCard h2::before { content: "≣"; }
 #drillCard h2::before { content: "↻"; }
@@ -540,6 +543,10 @@ button.ng {
   flex: 1 1 150px;
 }
 
+#singleActive .row button {
+  flex: 1 1 150px;
+}
+
 #drillResultInline {
   margin: 4px 0 8px;
 }
@@ -567,7 +574,20 @@ button.ng {
   padding: 6px 8px;
 }
 
+#singleExplanationAccordion {
+  background: linear-gradient(180deg, #fbfeff, #edf9ff);
+  border-color: #bee0eb;
+  white-space: normal;
+  padding: 6px 8px;
+}
+
 #drillExplanationAccordion summary {
+  cursor: pointer;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+#singleExplanationAccordion summary {
   cursor: pointer;
   font-weight: 700;
   margin-bottom: 4px;
@@ -583,6 +603,19 @@ button.ng {
 }
 
 #drillExplanationAccordion .note:last-child {
+  margin-bottom: 0;
+}
+
+#singleExplanationAccordion .note {
+  margin: 0 0 0.6em;
+  line-height: 1.2;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: #325d84;
+}
+
+#singleExplanationAccordion .note:last-child {
   margin-bottom: 0;
 }
 
@@ -876,6 +909,18 @@ button.ng {
   background: #eef5ff;
   border: 1px solid #c8daef;
   color: #2b507f;
+}
+
+.questionChip.done {
+  background: #dff6e7;
+  border-color: #9cd2b1;
+  color: #1f6037;
+}
+
+.questionChip.weak {
+  background: #fff3df;
+  border-color: #e8c48a;
+  color: #80551f;
 }
 
 .previewItem {
