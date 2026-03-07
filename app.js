@@ -5,6 +5,17 @@
   const SYNC_CONFIG_KEY = "gyoseiExamCoach.sync.v1";
   const SYNC_GIST_FILENAME = "gyosei-sync.json";
   const SYNC_SCHEMA_VERSION = 1;
+  const FIREBASE_WEB_CONFIG = {
+    projectId: "receipt-app-35ec3",
+    appId: "1:351411116532:web:b964a920add3e32f9841a1",
+    storageBucket: "receipt-app-35ec3.firebasestorage.app",
+    apiKey: "REPLACE_WITH_FIREBASE_API_KEY",
+    authDomain: "receipt-app-35ec3.firebaseapp.com",
+    messagingSenderId: "351411116532",
+    measurementId: "G-VY4BG6ZWPB"
+  };
+  const FIREBASE_SYNC_COLLECTION = "gyoseiExamCoach";
+  const FIREBASE_SYNC_DOC_ID = "sync";
   const RESEARCH_UPDATED_AT = "2026-03-07";
   const COMPLETE_BUFFER_DAYS = 7;
   const SECTION_CLEAR_TARGET = 5;
@@ -1261,10 +1272,18 @@
   let syncBusy = false;
   let syncRuntimeStatus = "";
   let syncRuntimeError = false;
+  let googleSyncBusy = false;
+  let googleSyncRuntimeStatus = "";
+  let googleSyncRuntimeError = false;
+  let firebaseReady = false;
+  let firebaseAuth = null;
+  let firebaseDb = null;
+  let firebaseUser = null;
 
   let state = loadState();
   let syncConfig = loadSyncConfig();
   syncStateShape();
+  initGoogleCloudSync();
   bindEvents();
   renderAll();
 
@@ -1444,7 +1463,10 @@
       token: "",
       gistId: "",
       lastRemoteUpdatedAt: "",
-      lastLocalPushedAt: ""
+      lastLocalPushedAt: "",
+      googleLastRemoteUpdatedAt: "",
+      googleLastLocalPushedAt: "",
+      googleLastPulledAt: ""
     };
   }
 
@@ -1462,7 +1484,10 @@
         token: String(parsed.token || "").trim(),
         gistId: String(parsed.gistId || "").trim(),
         lastRemoteUpdatedAt: String(parsed.lastRemoteUpdatedAt || "").trim(),
-        lastLocalPushedAt: String(parsed.lastLocalPushedAt || "").trim()
+        lastLocalPushedAt: String(parsed.lastLocalPushedAt || "").trim(),
+        googleLastRemoteUpdatedAt: String(parsed.googleLastRemoteUpdatedAt || "").trim(),
+        googleLastLocalPushedAt: String(parsed.googleLastLocalPushedAt || "").trim(),
+        googleLastPulledAt: String(parsed.googleLastPulledAt || "").trim()
       };
     } catch (_error) {
       return defaultSyncConfig();
@@ -1927,6 +1952,10 @@
     byId("homeNavGrid").addEventListener("click", onHomeNavClick);
     byId("saveExamDateBtn").addEventListener("click", onSaveExamDate);
     byId("saveSettingsBtn").addEventListener("click", onSaveSettings);
+    byId("googleSignInBtn").addEventListener("click", onGoogleSignIn);
+    byId("googleSignOutBtn").addEventListener("click", onGoogleSignOut);
+    byId("googleSyncPushBtn").addEventListener("click", onGoogleSyncPush);
+    byId("googleSyncPullBtn").addEventListener("click", onGoogleSyncPull);
     byId("syncSaveConfigBtn").addEventListener("click", onSyncSaveConfig);
     byId("syncClearTokenBtn").addEventListener("click", onSyncClearToken);
     byId("syncCreateBtn").addEventListener("click", onSyncCreateRoom);
@@ -2123,6 +2152,225 @@
 
     saveState();
     renderAll();
+  }
+
+  function initGoogleCloudSync() {
+    const sdk = window.firebase;
+    if (!sdk || typeof sdk.initializeApp !== "function") {
+      setGoogleSyncStatus("同期状態: Firebase SDKの読み込みに失敗しました。", true);
+      return;
+    }
+
+    try {
+      if (!sdk.apps || sdk.apps.length === 0) {
+        sdk.initializeApp(FIREBASE_WEB_CONFIG);
+      }
+      firebaseAuth = sdk.auth();
+      firebaseDb = sdk.firestore();
+      firebaseReady = true;
+      setGoogleSyncStatus("同期状態: Firebase接続OK。Googleログイン待ちです。");
+
+      firebaseAuth.onAuthStateChanged((user) => {
+        firebaseUser = user || null;
+        if (firebaseUser) {
+          setGoogleSyncStatus(`同期状態: ログイン中（${firebaseUser.email || firebaseUser.uid}）`);
+        } else if (!googleSyncRuntimeError) {
+          setGoogleSyncStatus("同期状態: 未ログイン");
+        }
+        renderSettings();
+      });
+
+      firebaseAuth.getRedirectResult()
+        .then(() => {
+          renderSettings();
+        })
+        .catch((error) => {
+          setGoogleSyncStatus(`同期状態: ログイン失敗 (${formatGoogleAuthError(error)})`, true);
+          renderSettings();
+        });
+    } catch (error) {
+      firebaseReady = false;
+      firebaseAuth = null;
+      firebaseDb = null;
+      setGoogleSyncStatus(`同期状態: Firebase初期化失敗 (${formatGoogleAuthError(error)})`, true);
+    }
+  }
+
+  async function onGoogleSignIn() {
+    if (!firebaseReady || !firebaseAuth) {
+      alert("Firebase同期の初期化に失敗しています。再読み込みしてください。");
+      return;
+    }
+    if (googleSyncBusy) {
+      return;
+    }
+
+    const provider = new window.firebase.auth.GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: "select_account" });
+
+    setGoogleSyncBusy(true);
+    setGoogleSyncStatus("同期状態: Googleログインを開始します...");
+    try {
+      await firebaseAuth.signInWithPopup(provider);
+      setGoogleSyncStatus("同期状態: Googleログインに成功しました。");
+    } catch (error) {
+      const code = String(error && error.code || "");
+      if (code === "auth/popup-blocked" || code === "auth/operation-not-supported-in-this-environment") {
+        setGoogleSyncStatus("同期状態: リダイレクト方式でログインします...");
+        await firebaseAuth.signInWithRedirect(provider);
+        return;
+      }
+      setGoogleSyncStatus(`同期状態: ログイン失敗 (${formatGoogleAuthError(error)})`, true);
+    } finally {
+      setGoogleSyncBusy(false);
+      renderSettings();
+    }
+  }
+
+  async function onGoogleSignOut() {
+    if (!firebaseAuth) {
+      return;
+    }
+    if (googleSyncBusy) {
+      return;
+    }
+    setGoogleSyncBusy(true);
+    try {
+      await firebaseAuth.signOut();
+      setGoogleSyncStatus("同期状態: ログアウトしました。");
+    } catch (error) {
+      setGoogleSyncStatus(`同期状態: ログアウト失敗 (${formatGoogleAuthError(error)})`, true);
+    } finally {
+      setGoogleSyncBusy(false);
+      renderSettings();
+    }
+  }
+
+  async function onGoogleSyncPush() {
+    if (googleSyncBusy) {
+      return;
+    }
+    if (!firebaseReady || !firebaseDb || !firebaseUser) {
+      alert("先にGoogleログインしてください。");
+      return;
+    }
+
+    setGoogleSyncBusy(true);
+    setGoogleSyncStatus("同期状態: クラウドへアップロード中...");
+    try {
+      const now = new Date().toISOString();
+      const payload = {
+        ...buildSyncPayload(),
+        provider: "firebase-google",
+        updatedAt: now,
+        updatedBy: {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email || ""
+        }
+      };
+      await getFirebaseSyncDocRef().set(payload, { merge: false });
+      syncConfig.googleLastLocalPushedAt = now;
+      syncConfig.googleLastRemoteUpdatedAt = now;
+      saveSyncConfig();
+      setGoogleSyncStatus("同期状態: クラウドへ同期しました。");
+    } catch (error) {
+      setGoogleSyncStatus(`同期状態: アップロード失敗 (${formatGoogleAuthError(error)})`, true);
+    } finally {
+      setGoogleSyncBusy(false);
+      renderSettings();
+    }
+  }
+
+  async function onGoogleSyncPull() {
+    if (googleSyncBusy) {
+      return;
+    }
+    if (!firebaseReady || !firebaseDb || !firebaseUser) {
+      alert("先にGoogleログインしてください。");
+      return;
+    }
+    if (!confirm("クラウドの進捗でこの端末を上書きします。実行しますか？")) {
+      return;
+    }
+
+    setGoogleSyncBusy(true);
+    setGoogleSyncStatus("同期状態: クラウドから読み込み中...");
+    try {
+      const snapshot = await getFirebaseSyncDocRef().get();
+      if (!snapshot.exists) {
+        setGoogleSyncStatus("同期状態: クラウドデータがまだありません。先にアップロードしてください。");
+        return;
+      }
+      const remote = snapshot.data() || {};
+      const remoteState = remote && typeof remote === "object" ? remote.state : null;
+      if (!remoteState || typeof remoteState !== "object") {
+        throw new Error("同期データの形式が不正です。");
+      }
+
+      state = remoteState;
+      syncStateShape();
+      saveState();
+
+      const remoteUpdated = String(remote.updatedAt || remote.savedAt || new Date().toISOString());
+      syncConfig.googleLastRemoteUpdatedAt = remoteUpdated;
+      syncConfig.googleLastPulledAt = new Date().toISOString();
+      saveSyncConfig();
+      setGoogleSyncStatus("同期状態: クラウドから同期しました。");
+      renderAll();
+    } catch (error) {
+      setGoogleSyncStatus(`同期状態: ダウンロード失敗 (${formatGoogleAuthError(error)})`, true);
+    } finally {
+      setGoogleSyncBusy(false);
+      renderSettings();
+    }
+  }
+
+  function getFirebaseSyncDocRef() {
+    if (!firebaseDb || !firebaseUser) {
+      throw new Error("Googleログインが必要です。");
+    }
+    return firebaseDb
+      .collection("users")
+      .doc(String(firebaseUser.uid))
+      .collection(FIREBASE_SYNC_COLLECTION)
+      .doc(FIREBASE_SYNC_DOC_ID);
+  }
+
+  function setGoogleSyncBusy(value) {
+    googleSyncBusy = Boolean(value);
+    const isLoggedIn = Boolean(firebaseUser && firebaseUser.uid);
+    byId("googleSignInBtn").disabled = googleSyncBusy || !firebaseReady || isLoggedIn;
+    byId("googleSignOutBtn").disabled = googleSyncBusy || !isLoggedIn;
+    byId("googleSyncPushBtn").disabled = googleSyncBusy || !isLoggedIn;
+    byId("googleSyncPullBtn").disabled = googleSyncBusy || !isLoggedIn;
+  }
+
+  function setGoogleSyncStatus(message, isError = false) {
+    googleSyncRuntimeStatus = String(message || "");
+    googleSyncRuntimeError = Boolean(isError);
+    const statusEl = byId("googleSyncStatusLine");
+    statusEl.textContent = googleSyncRuntimeStatus;
+    statusEl.classList.toggle("isError", googleSyncRuntimeError);
+  }
+
+  function formatGoogleAuthError(error) {
+    const code = String(error && error.code || "");
+    if (code === "auth/configuration-not-found") {
+      return "[configuration-not-found] Firebase AuthのGoogleプロバイダとサポートメール設定を確認してください。";
+    }
+    if (code === "auth/unauthorized-domain") {
+      return "[unauthorized-domain] このURLがauthorized domainsに未登録です。";
+    }
+    if (code === "auth/popup-blocked") {
+      return "[popup-blocked] ポップアップがブロックされました。";
+    }
+    if (code === "auth/cancelled-popup-request" || code === "auth/popup-closed-by-user") {
+      return "[popup-cancelled] ログイン画面が閉じられました。";
+    }
+    if (code === "auth/network-request-failed") {
+      return "[network-request-failed] 通信または初期化情報を確認してください。";
+    }
+    return formatSyncError(error);
   }
 
   function onSyncSaveConfig() {
@@ -3806,6 +4054,29 @@
     byId("dailyMinutesInput").value = String(state.settings.dailyMinutes);
     byId("targetPerfectRoundsInput").value = String(state.settings.targetPerfectRounds);
     byId("todayQuestionOverrideInput").value = state.settings.todayQuestionOverride;
+
+    const authLine = firebaseUser && firebaseUser.uid
+      ? `ログイン状態: ${firebaseUser.email || firebaseUser.uid}`
+      : "ログイン状態: 未ログイン";
+    byId("googleAuthLine").textContent = authLine;
+    setGoogleSyncBusy(googleSyncBusy);
+
+    if (!googleSyncRuntimeStatus) {
+      const pushed = syncConfig.googleLastLocalPushedAt
+        ? formatSyncTimestamp(syncConfig.googleLastLocalPushedAt)
+        : "未同期";
+      const pulled = syncConfig.googleLastPulledAt
+        ? formatSyncTimestamp(syncConfig.googleLastPulledAt)
+        : "未同期";
+      const remote = syncConfig.googleLastRemoteUpdatedAt
+        ? formatSyncTimestamp(syncConfig.googleLastRemoteUpdatedAt)
+        : "未同期";
+      setGoogleSyncStatus(`同期状態: 最終アップロード ${pushed} / 最終取込 ${pulled} / 最終クラウド更新 ${remote}`);
+    } else {
+      const googleStatusEl = byId("googleSyncStatusLine");
+      googleStatusEl.textContent = googleSyncRuntimeStatus;
+      googleStatusEl.classList.toggle("isError", googleSyncRuntimeError);
+    }
 
     byId("syncTokenInput").value = syncConfig.token;
     byId("syncGistIdInput").value = syncConfig.gistId;
