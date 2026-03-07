@@ -3670,8 +3670,11 @@
     const safeQuestionNo = Math.max(1, Math.round(Number(questionNo) || 1));
     const bank = PAST5_CHOICE_BANK[topic.id];
     if (Array.isArray(bank) && bank.length > 0) {
-      const picked = bank[(safeQuestionNo - 1) % bank.length];
-      return buildVariantizedAutoChoice(topic, safeQuestionNo, picked, bank);
+      const picked = pickBankQuestionByNo(bank, safeQuestionNo);
+      return normalizeQuestion({
+        ...picked,
+        trendTag: picked.trendTag || PAST5_TREND_BY_TOPIC[topic.id] || ""
+      });
     }
 
     const textbook = getTopicTextbook(topic);
@@ -3679,7 +3682,7 @@
       ? textbook.points
       : ["主語を確認する。", "要件を確認する。", "例外を確認する。"];
 
-    return buildVariantizedAutoChoice(topic, safeQuestionNo, {
+    return normalizeQuestion({
       prompt: `【3択】${topic.name} Q${safeQuestionNo}\n次のうち正しい学習アクションはどれ？`,
       choices: [
         `${points[0]} を先に確認する`,
@@ -3692,7 +3695,18 @@
       pitfall: "原則だけ覚えて例外を落とさない。",
       terms: defaultTermsForTopic(topic),
       trendTag: PAST5_TREND_BY_TOPIC[topic.id] || "過去5年傾向に合わせた基礎問題"
-    }, []);
+    });
+  }
+
+  function pickBankQuestionByNo(bank, questionNo) {
+    const length = Math.max(1, Math.round(Number(bank.length) || 1));
+    const q = Math.max(1, Math.round(Number(questionNo) || 1)) - 1;
+    const block = Math.floor(q / length);
+    const posInBlock = q % length;
+    const step = Math.max(1, length - 1);
+    const start = (block * 2) % length;
+    const index = (start + step * posInBlock) % length;
+    return bank[index];
   }
 
   function buildVariantizedAutoChoice(topic, questionNo, base, bank) {
