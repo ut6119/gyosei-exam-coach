@@ -3670,7 +3670,7 @@
     const safeQuestionNo = Math.max(1, Math.round(Number(questionNo) || 1));
     const bank = PAST5_CHOICE_BANK[topic.id];
     if (Array.isArray(bank) && bank.length > 0) {
-      const picked = pickBankQuestionByNo(bank, safeQuestionNo);
+      const picked = pickBankQuestionByNo(topic, bank, safeQuestionNo);
       return normalizeQuestion({
         ...picked,
         trendTag: picked.trendTag || PAST5_TREND_BY_TOPIC[topic.id] || ""
@@ -3698,15 +3698,38 @@
     });
   }
 
-  function pickBankQuestionByNo(bank, questionNo) {
+  function pickBankQuestionByNo(topic, bank, questionNo) {
     const length = Math.max(1, Math.round(Number(bank.length) || 1));
-    const q = Math.max(1, Math.round(Number(questionNo) || 1)) - 1;
-    const block = Math.floor(q / length);
-    const posInBlock = q % length;
-    const step = Math.max(1, length - 1);
-    const start = (block * 2) % length;
-    const index = (start + step * posInBlock) % length;
+    const safeQuestionNo = Math.max(1, Math.round(Number(questionNo) || 1));
+    const section = getCurrentSection(topic, safeQuestionNo);
+    const posInSection = Math.max(0, safeQuestionNo - section.start);
+    const step = pickCoprimeStep(length);
+    const start = (section.index * 3 + topic.id.length + section.start) % length;
+    const index = (start + step * posInSection) % length;
     return bank[index];
+  }
+
+  function pickCoprimeStep(length) {
+    if (length <= 2) {
+      return 1;
+    }
+    for (let step = length - 1; step >= 2; step -= 1) {
+      if (gcd(step, length) === 1) {
+        return step;
+      }
+    }
+    return 1;
+  }
+
+  function gcd(a, b) {
+    let x = Math.abs(Math.round(Number(a) || 0));
+    let y = Math.abs(Math.round(Number(b) || 0));
+    while (y !== 0) {
+      const r = x % y;
+      x = y;
+      y = r;
+    }
+    return x || 1;
   }
 
   function buildVariantizedAutoChoice(topic, questionNo, base, bank) {
