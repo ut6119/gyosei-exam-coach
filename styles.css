@@ -432,6 +432,13 @@ button.ng {
   padding: 4px 7px;
 }
 
+.note.isError {
+  color: #7f1f16;
+  background: #fff3f0;
+  border-color: #f1c7bf;
+  border-left-color: #d85743;
+}
+
 .noteInline {
   display: inline-block;
   margin-top: 2px;
