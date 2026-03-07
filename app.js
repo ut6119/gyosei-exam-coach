@@ -2,7 +2,7 @@
 
 (() => {
   const STORAGE_KEY = "gyoseiExamCoach.v1";
-  const RESEARCH_UPDATED_AT = "2026-03-06";
+  const RESEARCH_UPDATED_AT = "2026-03-07";
   const COMPLETE_BUFFER_DAYS = 7;
   const SECTION_CLEAR_TARGET = 5;
   const FOCUS_TABS = ["home", "today", "primer", "drill"];
@@ -71,6 +71,53 @@
         "令和3〜7年度の公式過去問から頻出語を抽出し、行政法・民法・憲法等の反復テーマを3択化。",
       url: "https://www.gyosei-shiken.or.jp/doc/abstract/abstract.html"
     }
+  ];
+
+  const PAST5_ANALYSIS_SUMMARY = [
+    {
+      topicLabel: "行政法",
+      frequency: "高",
+      trend: "行政手続・不服審査・訴訟類型の使い分けが反復。",
+      measure: "主語（処分庁/審査庁/裁判所）と期限を同時に確認。"
+    },
+    {
+      topicLabel: "民法",
+      frequency: "高",
+      trend: "無効/取消し、代理、債務不履行、保証の定番論点が継続。",
+      measure: "原則→例外→効果の順で1行説明できるようにする。"
+    },
+    {
+      topicLabel: "憲法・基礎法学",
+      frequency: "中",
+      trend: "人権の判例射程、統治の機関分担、法概念の基礎整理が頻出。",
+      measure: "結論だけでなく理由（審査枠組み）まで短文で再現。"
+    },
+    {
+      topicLabel: "商法・会社法",
+      frequency: "中",
+      trend: "機関設計、取締役責任、株主総会・取締役会の権限配分が中心。",
+      measure: "誰が決めるかを表で整理して混同を防ぐ。"
+    },
+    {
+      topicLabel: "基礎知識",
+      frequency: "中",
+      trend: "文章理解の時間管理、個人情報・情報分野の定義確認が重要。",
+      measure: "設問先読みで必要情報を拾い、更新点を直前確認。"
+    },
+    {
+      topicLabel: "記述式",
+      frequency: "高",
+      trend: "要件→当てはめ→結論の答案構成が得点差になりやすい。",
+      measure: "主語・法令名・結論の3点チェックを固定化。"
+    }
+  ];
+
+  const FORECAST_2026_STRATEGY = [
+    "行政法: 義務付け訴訟/差止訴訟、執行停止、理由提示の組合せ問題を厚めに演習。",
+    "民法: 取消し・無効・追認、代理権濫用、保証責任の範囲の比較問題を優先。",
+    "憲法: 表現の自由・平等・政教分離で判例理由を問う問題を重点化。",
+    "基礎知識: 個人情報・情報セキュリティ・文章理解の取りこぼし防止を最優先。",
+    "記述式: 40字/80字を想定し、要件漏れを防ぐ型で毎日1問。"
   ];
 
   const DEFAULT_TOPICS = [
@@ -995,6 +1042,189 @@
         pitfall: "聴聞と裁判手続の要件を混同しない。",
         terms: ["聴聞", "代理人", "手続保障"],
         trendTag: "過去5年頻出: 行政手続法"
+      }
+    ]
+  };
+
+  const PREDICTION_CHOICE_BANK_BY_TOPIC = {
+    admin: [
+      {
+        prompt: "【3択/2026予想】行政指導に従わないことだけを理由に、直ちに不利益取扱いをすることは？",
+        choices: [
+          "原則として許されない",
+          "必ず許される",
+          "常に刑事罰になる"
+        ],
+        correctIndex: 0,
+        answer: "行政指導は任意協力が前提で、不利益取扱いは慎重な判断が必要。",
+        explanation: "行政指導と強制処分の境界は、近年も問われやすい基本論点です。",
+        pitfall: "『行政が言う=必ず従う義務』と誤解しない。",
+        terms: ["行政指導", "任意", "不利益取扱い"],
+        trendTag: "2026予想: 行政手続法（行政指導）"
+      },
+      {
+        prompt: "【3択/2026予想】違法処分を争うとき、処分の効力を消すこと自体を主目的とする訴えは？",
+        choices: [
+          "取消訴訟",
+          "義務付け訴訟",
+          "差止訴訟"
+        ],
+        correctIndex: 0,
+        answer: "処分の効力を争って消す主軸は取消訴訟。",
+        explanation: "取消・義務付け・差止は目的の違いで整理すると失点しにくくなります。",
+        pitfall: "将来処分を止める差止訴訟と混同しない。",
+        terms: ["取消訴訟", "行政事件訴訟", "訴訟類型"],
+        trendTag: "2026予想: 行政事件訴訟（訴訟類型）"
+      }
+    ],
+    civil: [
+      {
+        prompt: "【3択/2026予想】契約当事者が同時に履行すべき関係で、相手が履行しないときに使う抗弁は？",
+        choices: [
+          "同時履行の抗弁",
+          "時効の抗弁",
+          "既判力の抗弁"
+        ],
+        correctIndex: 0,
+        answer: "相手が履行しないなら自分も履行を拒めるのが同時履行の抗弁。",
+        explanation: "契約実務で重要な論点で、条文知識を使った判断が求められます。",
+        pitfall: "解除と抗弁を同じ効果として覚えない。",
+        terms: ["同時履行の抗弁", "双務契約", "履行拒絶"],
+        trendTag: "2026予想: 債権（双務契約）"
+      },
+      {
+        prompt: "【3択/2026予想】意思表示に重要な勘違いがあり、法律要件を満たす場合の基本効果は？",
+        choices: [
+          "取消し得る",
+          "必ず有効のまま",
+          "当然に刑罰対象"
+        ],
+        correctIndex: 0,
+        answer: "要件を満たす錯誤は取り消し得ると整理するのが基本。",
+        explanation: "無効・取消しの区別は民法の頻出テーマです。",
+        pitfall: "『最初から無効』と短絡しない。",
+        terms: ["錯誤", "取消し", "意思表示"],
+        trendTag: "2026予想: 民法総則（意思表示）"
+      }
+    ],
+    const_basic: [
+      {
+        prompt: "【3択/2026予想】表現内容を事前に審査して発表を禁止する制度に最も近いのは？",
+        choices: [
+          "検閲",
+          "事後的な名誉毀損訴訟",
+          "住民監査請求"
+        ],
+        correctIndex: 0,
+        answer: "事前審査で発表を禁じるのは検閲に該当する考え方。",
+        explanation: "表現の自由では、事前規制と事後規制の区別が問われやすいです。",
+        pitfall: "表現行為後の責任追及と混同しない。",
+        terms: ["検閲", "表現の自由", "事前規制"],
+        trendTag: "2026予想: 憲法人権（表現の自由）"
+      },
+      {
+        prompt: "【3択/2026予想】法の下の平等に関する判断で重視される基準は？",
+        choices: [
+          "合理的理由の有無",
+          "完全に同一取扱いかのみ",
+          "行政の裁量のみ"
+        ],
+        correctIndex: 0,
+        answer: "区別に合理的理由があるかが平等判断の中心。",
+        explanation: "平等論点は『区別の根拠』を説明できるかが得点差になります。",
+        pitfall: "平等=いつでも全員同じ、と覚えない。",
+        terms: ["平等原則", "合理的区別", "審査"],
+        trendTag: "2026予想: 憲法人権（平等）"
+      }
+    ],
+    commercial: [
+      {
+        prompt: "【3択/2026予想】取締役に求められる基本的な注意義務はどれ？",
+        choices: [
+          "善管注意義務",
+          "黙秘義務",
+          "無過失責任"
+        ],
+        correctIndex: 0,
+        answer: "取締役には善管注意義務が課される。",
+        explanation: "役員責任分野の基本語句は近年も安定して出題対象です。",
+        pitfall: "忠実義務と条文上の位置付けを混同しない。",
+        terms: ["善管注意義務", "取締役", "会社法"],
+        trendTag: "2026予想: 取締役責任"
+      },
+      {
+        prompt: "【3択/2026予想】定款変更などの重要事項で必要になることが多い決議は？",
+        choices: [
+          "特別決議",
+          "普通決議",
+          "書面決議のみ"
+        ],
+        correctIndex: 0,
+        answer: "重要事項は特別決議が要求される場面が多い。",
+        explanation: "普通決議と特別決議の使い分けは機関法の基本です。",
+        pitfall: "決議要件の重さを逆に覚えない。",
+        terms: ["特別決議", "株主総会", "定款変更"],
+        trendTag: "2026予想: 株主総会（決議要件）"
+      }
+    ],
+    general: [
+      {
+        prompt: "【3択/2026予想】個人情報漏えいが疑われる場面で、最初に優先すべき対応は？",
+        choices: [
+          "影響範囲の確認と拡大防止",
+          "根拠なくSNSで公表",
+          "証拠を全削除"
+        ],
+        correctIndex: 0,
+        answer: "初動は影響範囲の把握と拡大防止が基本。",
+        explanation: "情報分野は手順の優先順位を問う問題が増えています。",
+        pitfall: "焦って証拠保全を壊さない。",
+        terms: ["個人情報", "漏えい対応", "初動"],
+        trendTag: "2026予想: 情報分野（初動対応）"
+      },
+      {
+        prompt: "【3択/2026予想】文章理解で時間切れを防ぐ実戦的な手順は？",
+        choices: [
+          "設問先読み→根拠段落特定→選択肢比較",
+          "本文を最初から最後まで反復読み",
+          "選択肢だけで推測"
+        ],
+        correctIndex: 0,
+        answer: "設問先読みから根拠探索に入る流れが効率的。",
+        explanation: "基礎知識は時間配分の技術で得点が安定します。",
+        pitfall: "本文全読みに時間を使い過ぎない。",
+        terms: ["文章理解", "設問先読み", "時間配分"],
+        trendTag: "2026予想: 文章理解（時短手順）"
+      }
+    ],
+    describe: [
+      {
+        prompt: "【3択/2026予想】記述で失点を抑える最優先チェックはどれ？",
+        choices: [
+          "主語・法令名・結論の3点確認",
+          "修辞表現の華やかさ",
+          "句読点の数だけ調整"
+        ],
+        correctIndex: 0,
+        answer: "採点に直結する主語・法令名・結論を最優先で確認。",
+        explanation: "短い字数ほど、要点の欠落がそのまま失点になります。",
+        pitfall: "読みやすさだけで見直しを終えない。",
+        terms: ["記述式", "主語", "法令名"],
+        trendTag: "2026予想: 記述式（失点回避）"
+      },
+      {
+        prompt: "【3択/2026予想】記述の当てはめで最も重要なのはどれ？",
+        choices: [
+          "事実を要件語に対応させる",
+          "感想を先に書く",
+          "判例名のみ列挙する"
+        ],
+        correctIndex: 0,
+        answer: "事実を要件語に結びつける作業が当てはめの中心。",
+        explanation: "要件だけ、結論だけでは加点されにくく、橋渡しの説明が必要です。",
+        pitfall: "条文暗記をそのまま書き写さない。",
+        terms: ["当てはめ", "要件事実", "記述答案"],
+        trendTag: "2026予想: 記述式（当てはめ）"
       }
     ]
   };
@@ -3575,12 +3805,37 @@
     byId("researchUpdatedAt").textContent = RESEARCH_UPDATED_AT;
 
     const list = byId("researchList");
+    const trendList = byId("researchTrendList");
+    const forecastList = byId("researchForecastList");
+    const policyNote = byId("researchPolicyNote");
     list.innerHTML = "";
 
     for (const source of RESEARCH_SOURCES) {
       const li = document.createElement("li");
       li.innerHTML = `<strong>${escapeHtml(source.title)}:</strong> ${escapeHtml(source.insight)} <a href="${escapeAttr(source.url)}" target="_blank" rel="noreferrer noopener">出典</a>`;
       list.appendChild(li);
+    }
+
+    if (trendList) {
+      trendList.innerHTML = "";
+      for (const item of PAST5_ANALYSIS_SUMMARY) {
+        const li = document.createElement("li");
+        li.innerHTML = `<strong>${escapeHtml(item.topicLabel)}（頻度:${escapeHtml(item.frequency)}）</strong><br>${escapeHtml(item.trend)}<br><span class="noteInline">対策: ${escapeHtml(item.measure)}</span>`;
+        trendList.appendChild(li);
+      }
+    }
+
+    if (forecastList) {
+      forecastList.innerHTML = "";
+      for (const forecast of FORECAST_2026_STRATEGY) {
+        const li = document.createElement("li");
+        li.textContent = forecast;
+        forecastList.appendChild(li);
+      }
+    }
+
+    if (policyNote) {
+      policyNote.textContent = "注記: 予想問題は過去5年の傾向分析ベースのオリジナル問題であり、本試験の的中を保証するものではありません。";
     }
   }
 
@@ -3848,10 +4103,8 @@
   function buildTopicChoiceBank(topicId) {
     const base = Array.isArray(PAST5_CHOICE_BANK[topicId]) ? PAST5_CHOICE_BANK[topicId] : [];
     const extra = Array.isArray(EXTRA_CHOICE_BANK_BY_TOPIC[topicId]) ? EXTRA_CHOICE_BANK_BY_TOPIC[topicId] : [];
-    if (extra.length === 0) {
-      return base;
-    }
-    return [...base, ...extra];
+    const forecast = Array.isArray(PREDICTION_CHOICE_BANK_BY_TOPIC[topicId]) ? PREDICTION_CHOICE_BANK_BY_TOPIC[topicId] : [];
+    return [...base, ...extra, ...forecast];
   }
 
   function pickBankQuestionByNo(topic, bank, questionNo) {

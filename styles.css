@@ -432,6 +432,13 @@ button.ng {
   padding: 4px 7px;
 }
 
+.noteInline {
+  display: inline-block;
+  margin-top: 2px;
+  font-size: 0.8rem;
+  color: #375a80;
+}
+
 #currentDateTime {
   margin-top: 8px;
   background: #e9f5ff;
