@@ -784,9 +784,234 @@
     ]
   };
 
+  const EXTRA_CHOICE_BANK_BY_TOPIC = {
+    admin: [
+      {
+        prompt: "【3択】申請に対する処分の判断ルールを、行政庁があらかじめ定めたものは？",
+        choices: [
+          "審査基準",
+          "判例集",
+          "政党規約"
+        ],
+        correctIndex: 0,
+        answer: "事前に定める判断ルールは審査基準。",
+        explanation: "申請処理の公平性を高めるため、判断基準を先に整える考え方です。",
+        pitfall: "判断基準と処分理由の提示を混同しない。",
+        terms: ["審査基準", "申請", "行政手続法"],
+        trendTag: "過去5年頻出: 行政手続法"
+      },
+      {
+        prompt: "【3択】不利益処分をするとき、行政庁が相手方に示すべきものは？",
+        choices: [
+          "理由提示",
+          "即時執行",
+          "黙示承認"
+        ],
+        correctIndex: 0,
+        answer: "不利益処分では理由提示が重要。",
+        explanation: "なぜその処分になったかを示すことで、納得性と検証可能性を確保します。",
+        pitfall: "処分前の聴聞と、処分時の理由提示を区別する。",
+        terms: ["理由提示", "不利益処分", "手続保障"],
+        trendTag: "過去5年頻出: 行政手続法"
+      },
+      {
+        prompt: "【3択】行政指導の基本的な性質として正しいものはどれ？",
+        choices: [
+          "相手方の任意の協力を前提にする",
+          "必ず強制できる",
+          "拒否すると自動で刑罰が科される"
+        ],
+        correctIndex: 0,
+        answer: "行政指導は任意協力が前提。",
+        explanation: "法的強制とは別の働きかけなので、相手の意思を無視できません。",
+        pitfall: "行政指導と強制処分を同じにしない。",
+        terms: ["行政指導", "任意", "強制処分"],
+        trendTag: "過去5年頻出: 行政手続法"
+      },
+      {
+        prompt: "【3択】審査請求中に処分の効力を一時的に止める制度はどれ？",
+        choices: [
+          "執行停止",
+          "時効中断",
+          "仮差押え"
+        ],
+        correctIndex: 0,
+        answer: "効力を一時停止するのは執行停止。",
+        explanation: "結論が出る前に回復困難な不利益が生じる場面で使われる代表制度です。",
+        pitfall: "民事保全の用語と混同しない。",
+        terms: ["執行停止", "審査請求", "不服審査"],
+        trendTag: "過去5年頻出: 行政不服審査法"
+      },
+      {
+        prompt: "【3択】処分を受けた人に不服申立先や期間を知らせる説明を何という？",
+        choices: [
+          "教示",
+          "告知聴聞",
+          "弁明録取"
+        ],
+        correctIndex: 0,
+        answer: "不服申立て情報を示すのは教示。",
+        explanation: "救済手段を実効的に使えるようにするため、案内の明示が重要です。",
+        pitfall: "教示と処分理由の記載を同一視しない。",
+        terms: ["教示", "不服申立て", "行政救済"],
+        trendTag: "過去5年頻出: 行政不服審査法"
+      },
+      {
+        prompt: "【3択】審査請求を受け、裁決を行う行政機関はどれ？",
+        choices: [
+          "審査庁",
+          "監査法人",
+          "法制審議会"
+        ],
+        correctIndex: 0,
+        answer: "裁決を行う主体は審査庁。",
+        explanation: "処分庁と審査庁の役割を分けて押さえると混乱しにくくなります。",
+        pitfall: "処分庁と審査庁を同じものとして覚えない。",
+        terms: ["審査庁", "裁決", "不服審査"],
+        trendTag: "過去5年頻出: 行政不服審査法"
+      },
+      {
+        prompt: "【3択】審査請求の期間として基本形に近いものはどれ？",
+        choices: [
+          "処分を知った日の翌日から3か月以内",
+          "処分日から3日以内",
+          "いつでも無期限で可能"
+        ],
+        correctIndex: 0,
+        answer: "基本は『知った日の翌日から3か月以内』。",
+        explanation: "期限問題は得点源になりやすいので、数字を一緒に覚えるのが有効です。",
+        pitfall: "『知った日基準』と『処分日基準』を混同しない。",
+        terms: ["審査請求期間", "3か月", "期限"],
+        trendTag: "過去5年頻出: 行政不服審査法"
+      },
+      {
+        prompt: "【3択】申請に対する返答がない場合の審査請求は、原則どのタイミングで可能？",
+        choices: [
+          "相当期間が経過した後",
+          "申請した直後",
+          "5年経過後のみ"
+        ],
+        correctIndex: 0,
+        answer: "不作為への審査請求は相当期間経過後に可能。",
+        explanation: "行政に判断のための合理的な時間を与えた後に争う構造です。",
+        pitfall: "却下処分への審査請求と要件を混同しない。",
+        terms: ["不作為", "相当期間", "審査請求"],
+        trendTag: "過去5年頻出: 行政不服審査法"
+      },
+      {
+        prompt: "【3択】道路など公の施設の管理ミスで損害が出た場合の根拠として適切なのはどれ？",
+        choices: [
+          "国家賠償法2条",
+          "民法90条",
+          "行政手続法5条"
+        ],
+        correctIndex: 0,
+        answer: "公の営造物の瑕疵は国家賠償法2条が基本。",
+        explanation: "公務員個人の行為責任だけでなく、施設管理の責任も別に問われます。",
+        pitfall: "国家賠償法1条と2条の対象を混同しない。",
+        terms: ["国家賠償法2条", "営造物", "瑕疵"],
+        trendTag: "過去5年頻出: 国家賠償法"
+      },
+      {
+        prompt: "【3択】処分に重大かつ明白な瑕疵があるとして、効力不存在の確認を求める訴訟は？",
+        choices: [
+          "無効等確認訴訟",
+          "取消訴訟",
+          "住民訴訟"
+        ],
+        correctIndex: 0,
+        answer: "効力不存在の確認を求めるのは無効等確認訴訟。",
+        explanation: "取消訴訟との違いは、争う対象が『取り消し』か『そもそも無効か』かです。",
+        pitfall: "取消訴訟と無効等確認訴訟の目的を混同しない。",
+        terms: ["無効等確認訴訟", "重大明白", "行政事件訴訟"],
+        trendTag: "過去5年頻出: 行政事件訴訟法"
+      },
+      {
+        prompt: "【3択】行政庁が本来すべき処分をしないとき、処分をするよう求める訴訟は？",
+        choices: [
+          "義務付け訴訟",
+          "差止訴訟",
+          "当事者訴訟"
+        ],
+        correctIndex: 0,
+        answer: "処分の実施を求めるのは義務付け訴訟。",
+        explanation: "『してほしい』を裁判所に求めるタイプの訴訟と整理すると覚えやすいです。",
+        pitfall: "差止訴訟（止める）との向きを取り違えない。",
+        terms: ["義務付け訴訟", "不作為", "行政事件訴訟"],
+        trendTag: "過去5年頻出: 行政事件訴訟法"
+      },
+      {
+        prompt: "【3択】これから行われる違法処分を事前に止めるための訴訟は？",
+        choices: [
+          "差止訴訟",
+          "取消訴訟",
+          "再審"
+        ],
+        correctIndex: 0,
+        answer: "将来の違法処分の防止を求めるのは差止訴訟。",
+        explanation: "取消訴訟は既にされた処分、差止訴訟はこれからの処分が対象です。",
+        pitfall: "時点の違い（すでに処分済みか、これからか）を混同しない。",
+        terms: ["差止訴訟", "将来処分", "行政事件訴訟"],
+        trendTag: "過去5年頻出: 行政事件訴訟法"
+      },
+      {
+        prompt: "【3択】自治体の違法・不当な財務行為を住民がまず監査委員に申し立てる手続は？",
+        choices: [
+          "住民監査請求",
+          "審査請求",
+          "告発"
+        ],
+        correctIndex: 0,
+        answer: "最初の申立ては住民監査請求。",
+        explanation: "住民訴訟に進む前段としての位置付けが重要です。",
+        pitfall: "一般の行政不服審査と住民監査請求を混同しない。",
+        terms: ["住民監査請求", "住民訴訟", "地方自治"],
+        trendTag: "過去5年頻出: 地方自治法"
+      },
+      {
+        prompt: "【3択】地方公共団体が地域のルールとして制定する法規はどれ？",
+        choices: [
+          "条例",
+          "省令",
+          "判決"
+        ],
+        correctIndex: 0,
+        answer: "地方公共団体が定めるのは条例。",
+        explanation: "国の法令（法律・政令・省令）とのレベル差を区別できることが大切です。",
+        pitfall: "条例と省令の制定主体を混同しない。",
+        terms: ["条例", "地方公共団体", "地方自治"],
+        trendTag: "過去5年頻出: 地方自治法"
+      },
+      {
+        prompt: "【3択】聴聞の対象者がとることができる対応として正しいものはどれ？",
+        choices: [
+          "代理人を選任できる",
+          "必ず本人だけが出席しなければならない",
+          "意見書の提出は一切できない"
+        ],
+        correctIndex: 0,
+        answer: "聴聞では代理人の選任が可能。",
+        explanation: "手続保障の一環として、本人の防御機会を実質化する仕組みです。",
+        pitfall: "聴聞と裁判手続の要件を混同しない。",
+        terms: ["聴聞", "代理人", "手続保障"],
+        trendTag: "過去5年頻出: 行政手続法"
+      }
+    ]
+  };
+
+  const ANSWER_DIVERSITY_WINDOW_BY_TOPIC = {
+    admin: 10,
+    civil: 8,
+    const_basic: 8,
+    commercial: 8,
+    general: 8,
+    describe: 8
+  };
+
   let mockTimerId = null;
   let clockTimerId = null;
   let lastClockDate = "";
+  const bankPickSequenceCache = new Map();
 
   let state = loadState();
   syncStateShape();
@@ -3578,7 +3803,7 @@
 
   function buildAutoChoiceDetail(topic, questionNo) {
     const safeQuestionNo = Math.max(1, Math.round(Number(questionNo) || 1));
-    const bank = PAST5_CHOICE_BANK[topic.id];
+    const bank = buildTopicChoiceBank(topic.id);
     if (Array.isArray(bank) && bank.length > 0) {
       const picked = pickBankQuestionByNo(topic, bank, safeQuestionNo);
       return normalizeQuestion({
@@ -3608,17 +3833,155 @@
     });
   }
 
+  function buildTopicChoiceBank(topicId) {
+    const base = Array.isArray(PAST5_CHOICE_BANK[topicId]) ? PAST5_CHOICE_BANK[topicId] : [];
+    const extra = Array.isArray(EXTRA_CHOICE_BANK_BY_TOPIC[topicId]) ? EXTRA_CHOICE_BANK_BY_TOPIC[topicId] : [];
+    if (extra.length === 0) {
+      return base;
+    }
+    return [...base, ...extra];
+  }
+
   function pickBankQuestionByNo(topic, bank, questionNo) {
     const length = Math.max(1, Math.round(Number(bank.length) || 1));
+    if (!Array.isArray(bank) || bank.length === 0) {
+      return defaultQuestion();
+    }
     const safeQuestionNo = Math.max(1, Math.round(Number(questionNo) || 1));
-    const qIndex = safeQuestionNo - 1;
+    const totalQuestions = Math.max(1, Math.round(Number(topic && topic.total) || 1));
+    const safeNo = Math.min(safeQuestionNo, totalQuestions);
+    const sequence = getBankPickSequence(topic, bank);
+    const index = sequence[safeNo - 1] ?? sequence[sequence.length - 1] ?? 0;
+    return bank[index];
+  }
+
+  function getBankPickSequence(topic, bank) {
+    const length = Math.max(1, Math.round(Number(bank.length) || 1));
+    const totalQuestions = Math.max(1, Math.round(Number(topic && topic.total) || 1));
+    const topicId = String((topic && topic.id) || "topic");
+    const cacheKey = `${topicId}:${length}:${totalQuestions}`;
+    const cached = bankPickSequenceCache.get(cacheKey);
+    if (Array.isArray(cached) && cached.length === totalQuestions) {
+      return cached;
+    }
+
+    const permutation = buildBankPermutation(topicId, length);
+    const sequence = [];
+    const window = resolveAnswerDiversityWindow(topicId, length);
+    for (let qNo = 1; qNo <= totalQuestions; qNo += 1) {
+      const preferred = mapBaseBankIndex(topicId, length, qNo, permutation);
+      const picked = pickDiverseBankIndex(bank, preferred, sequence, window, qNo);
+      sequence.push(picked);
+    }
+
+    bankPickSequenceCache.set(cacheKey, sequence);
+    return sequence;
+  }
+
+  function mapBaseBankIndex(topicId, length, questionNo, permutation) {
+    const qIndex = Math.max(0, Math.round(Number(questionNo) || 1) - 1);
     const cycle = Math.floor(qIndex / length);
     const pos = qIndex % length;
-    const permutation = buildBankPermutation(topic.id, length);
-    const cycleOffset = (cycle * (topic.id.length + 1)) % length;
+    const cycleOffset = (cycle * (String(topicId || "").length + 1)) % length;
     const mappedPos = cycle % 2 === 1 ? (length - 1 - pos) : pos;
-    const index = permutation[(mappedPos + cycleOffset) % length];
-    return bank[index];
+    return permutation[(mappedPos + cycleOffset) % length];
+  }
+
+  function resolveAnswerDiversityWindow(topicId, bankLength) {
+    const configured = Math.max(1, Math.round(Number(ANSWER_DIVERSITY_WINDOW_BY_TOPIC[topicId]) || 6));
+    const cap = Math.max(1, Math.min(bankLength - 1, Math.round(bankLength * 0.8)));
+    return Math.max(1, Math.min(configured, cap));
+  }
+
+  function pickDiverseBankIndex(bank, preferredIndex, pickedIndices, window, questionNo) {
+    const length = Math.max(1, Math.round(Number(bank.length) || 1));
+    if (length === 1) {
+      return 0;
+    }
+
+    const recentAnswerKeys = new Set();
+    const recentPromptKeys = new Set();
+    const from = Math.max(0, pickedIndices.length - Math.max(1, window));
+    for (let i = from; i < pickedIndices.length; i += 1) {
+      const recent = bank[pickedIndices[i]];
+      recentAnswerKeys.add(getBankEntryAnswerKey(recent));
+      recentPromptKeys.add(getBankEntryPromptKey(recent));
+    }
+
+    const step = pickCoprimeStepBySeed(length, Math.max(1, Math.round(Number(questionNo) || 1)) + preferredIndex);
+    const order = [];
+    for (let offset = 0; offset < length; offset += 1) {
+      order.push((preferredIndex + step * offset) % length);
+    }
+
+    for (const index of order) {
+      const entry = bank[index];
+      const answerKey = getBankEntryAnswerKey(entry);
+      const promptKey = getBankEntryPromptKey(entry);
+      if (!recentAnswerKeys.has(answerKey) && !recentPromptKeys.has(promptKey)) {
+        return index;
+      }
+    }
+
+    for (const index of order) {
+      const entry = bank[index];
+      const answerKey = getBankEntryAnswerKey(entry);
+      if (!recentAnswerKeys.has(answerKey)) {
+        return index;
+      }
+    }
+
+    if (pickedIndices.length > 0) {
+      const lastIndex = pickedIndices[pickedIndices.length - 1];
+      for (const index of order) {
+        if (index !== lastIndex) {
+          return index;
+        }
+      }
+    }
+
+    return preferredIndex;
+  }
+
+  function pickCoprimeStepBySeed(length, seed) {
+    const candidates = [];
+    for (let step = 1; step < length; step += 1) {
+      if (gcd(step, length) === 1) {
+        candidates.push(step);
+      }
+    }
+    if (candidates.length === 0) {
+      return 1;
+    }
+    const safeSeed = Math.max(0, Math.round(Number(seed) || 0));
+    return candidates[safeSeed % candidates.length];
+  }
+
+  function getBankEntryAnswerKey(entry) {
+    if (!entry || typeof entry !== "object") {
+      return "";
+    }
+    const choices = Array.isArray(entry.choices) ? entry.choices : [];
+    const parsedCorrect = Math.round(Number(entry.correctIndex));
+    const correctIndex = Number.isInteger(parsedCorrect) && parsedCorrect >= 0 && parsedCorrect < choices.length
+      ? parsedCorrect
+      : 0;
+    const raw = String(choices[correctIndex] || entry.answer || "").trim();
+    return normalizeKeyText(raw);
+  }
+
+  function getBankEntryPromptKey(entry) {
+    if (!entry || typeof entry !== "object") {
+      return "";
+    }
+    return normalizeKeyText(String(entry.prompt || "").trim());
+  }
+
+  function normalizeKeyText(value) {
+    return String(value || "")
+      .replace(/[「」『』【】（）()［］\[\]{}]/gu, "")
+      .replace(/[、。・,.:：!?！？\s]/gu, "")
+      .toLowerCase();
   }
 
   function buildBankPermutation(topicId, length) {
