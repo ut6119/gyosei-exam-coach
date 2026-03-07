@@ -265,96 +265,6 @@
     describe: ["答案構成", "要件抽出", "当てはめ", "結論表現"]
   };
 
-  const AUTO_PROMPT_CONTEXTS = [
-    "申請人が窓口で処分理由を確認している場面",
-    "受験生が誤答ノートを見直している場面",
-    "自治体職員が手続の順番を整理している場面",
-    "講義後に条文と判例を照合している場面",
-    "期限計算を含む設問を解き直している場面",
-    "主語の取り違えで失点した直後の場面",
-    "模試の復習で誤答原因を分類している場面",
-    "同じ論点を別事例で確認している場面",
-    "審査請求と訴訟の違いを整理している場面",
-    "原則と例外の両方をチェックしている場面",
-    "条文の文言と選択肢の語尾を比べる場面",
-    "過去問の頻出論点を横断で復習する場面",
-    "答案作成前に要件を箇条書きする場面",
-    "判例の結論と理由を切り分ける場面",
-    "肢のうち主語だけが違う問題を解く場面",
-    "同一テーマの5問セットを周回する場面",
-    "期限・主体・例外を先にマーキングする場面",
-    "小テスト前に苦手論点だけ再確認する場面",
-    "記述式で当てはめ不足を修正する場面",
-    "用語定義を中学生向けに言い換える場面",
-    "結論は同じでも根拠が異なる肢を比較する場面",
-    "講師解説を聞いた後に再挑戦する場面",
-    "本番想定で時間制限をかけて解く場面",
-    "法令名と手続名の対応を確認する場面"
-  ];
-
-  const AUTO_FOCUS_WORDS = [
-    "主語の正確さ",
-    "期限の先読み",
-    "要件の抜け漏れ防止",
-    "効果の整理",
-    "原則と例外の切り分け",
-    "手続の順番",
-    "条文文言との一致",
-    "判例理由の理解",
-    "出題者のひっかけ語尾",
-    "法令名の対応",
-    "不服申立てと訴訟の区別",
-    "定義の短文化",
-    "当てはめの具体性",
-    "結論先行ミスの回避",
-    "頻出論点の再現性",
-    "誤答原因の言語化",
-    "類題への転用力",
-    "本番時間内での判断"
-  ];
-
-  const AUTO_WRONG_CHOICES = [
-    "主語を見ずに語感だけで選ぶ",
-    "期限を確認せずに先に結論を書く",
-    "原則だけで即断し例外を確認しない",
-    "似た用語を同じ意味として扱う",
-    "条文ではなく記憶だけで判断する",
-    "最初の印象で肢を固定する",
-    "要件を飛ばして効果だけ読む",
-    "不服申立てと訴訟を同じ手続とみなす",
-    "主体を入れ替えて読んでも気にしない",
-    "判例の結論だけ覚えて理由を捨てる",
-    "問題文より先に選択肢だけ読む",
-    "期限計算を概算で済ませる",
-    "根拠条文を確認せずに正解扱いする",
-    "例外肢を必ず誤りと決めつける",
-    "設問の聞き方を読まずに回答する",
-    "誤答理由を記録せず次に進む",
-    "模試と通常演習で読み方を変えない",
-    "当てはめを書かず結論だけ残す",
-    "似た判例を同一事案として扱う",
-    "法令名を省略して覚える"
-  ];
-
-  const AUTO_PITFALL_WARNINGS = [
-    "主語・期限・例外の3点を同時に確認する。",
-    "設問の聞き方（正しい/誤り）を先に読む。",
-    "条文文言と選択肢の語尾差を見落とさない。",
-    "不服申立てと訴訟の手続順を混同しない。",
-    "結論だけでなく根拠を1行で言えるようにする。",
-    "原則肢と例外肢をペアで覚える。",
-    "期限問題は日数と起算点を必ず確認する。",
-    "主体が変わる肢は要注意として扱う。",
-    "同じ用語でも分野が違えば意味が変わる。",
-    "誤答した肢は翌日に再挑戦する。",
-    "解説を読んだ直後に1問だけ再解答する。",
-    "記述式では当てはめ不足が失点になりやすい。",
-    "似た判例は事案の差で結論が変わる。",
-    "法令名・手続名をセットで暗記する。",
-    "模試後は誤答原因をカテゴリ分けする。",
-    "時間制限下でも主語確認を省略しない。"
-  ];
-
   const PAST5_CHOICE_BANK = {
     admin: [
       {
@@ -3701,12 +3611,24 @@
   function pickBankQuestionByNo(topic, bank, questionNo) {
     const length = Math.max(1, Math.round(Number(bank.length) || 1));
     const safeQuestionNo = Math.max(1, Math.round(Number(questionNo) || 1));
-    const section = getCurrentSection(topic, safeQuestionNo);
-    const posInSection = Math.max(0, safeQuestionNo - section.start);
-    const step = pickCoprimeStep(length);
-    const start = (section.index * 3 + topic.id.length + section.start) % length;
-    const index = (start + step * posInSection) % length;
+    const qIndex = safeQuestionNo - 1;
+    const cycle = Math.floor(qIndex / length);
+    const pos = qIndex % length;
+    const permutation = buildBankPermutation(topic.id, length);
+    const cycleOffset = (cycle * (topic.id.length + 1)) % length;
+    const mappedPos = cycle % 2 === 1 ? (length - 1 - pos) : pos;
+    const index = permutation[(mappedPos + cycleOffset) % length];
     return bank[index];
+  }
+
+  function buildBankPermutation(topicId, length) {
+    const start = seedFromString(topicId) % length;
+    const step = pickCoprimeStep(length);
+    const order = [];
+    for (let i = 0; i < length; i += 1) {
+      order.push((start + step * i) % length);
+    }
+    return order;
   }
 
   function pickCoprimeStep(length) {
@@ -3732,126 +3654,13 @@
     return x || 1;
   }
 
-  function buildVariantizedAutoChoice(topic, questionNo, base, bank) {
-    const seed = Math.max(1, Math.round(Number(questionNo) || 1));
-    const section = getCurrentSection(topic, seed);
-    const context = AUTO_PROMPT_CONTEXTS[(seed * 7 + topic.id.length) % AUTO_PROMPT_CONTEXTS.length];
-    const focus = AUTO_FOCUS_WORDS[(seed * 11 + topic.name.length) % AUTO_FOCUS_WORDS.length];
-    const warning = AUTO_PITFALL_WARNINGS[(seed * 13 + topic.id.length) % AUTO_PITFALL_WARNINGS.length];
-    const stem = normalizeAutoPromptStem(base.prompt, topic);
-
-    const prompt = `【3択】${topic.name} ${section.name} Q${seed}\n${context}。${stem}を確認する場面で、${focus}として最も適切なのはどれ？`;
-    const correctChoice = normalizeAutoChoiceText(base.choices[base.correctIndex] || base.answer || `${topic.name}の要件を先に確認する`);
-    const wrongPool = buildWrongChoicePool(topic.name, bank, correctChoice);
-    const wrong1 = wrongPool[(seed * 5 + 3) % wrongPool.length];
-    let wrong2 = wrongPool[(seed * 9 + 7) % wrongPool.length];
-    if (wrong2 === wrong1) {
-      wrong2 = wrongPool[(seed * 9 + 8) % wrongPool.length];
+  function seedFromString(value) {
+    const text = String(value || "");
+    let seed = 0;
+    for (let i = 0; i < text.length; i += 1) {
+      seed = (seed * 31 + text.charCodeAt(i)) % 2147483647;
     }
-
-    const arranged = arrangeAutoChoices(correctChoice, wrong1, wrong2, seed);
-    const terms = Array.from(new Set([
-      ...(Array.isArray(base.terms) ? base.terms : []),
-      ...defaultTermsForTopic(topic)
-    ])).filter(Boolean).slice(0, 8);
-
-    const answerChoice = arranged.choices[arranged.correctIndex];
-    const baseExplanation = String(base.explanation || "論点を分けて整理すると正答率が上がります。").trim();
-    const basePitfall = String(base.pitfall || "主語・期限・例外の取り違いに注意。").trim();
-
-    return normalizeQuestion({
-      prompt,
-      choices: arranged.choices,
-      correctIndex: arranged.correctIndex,
-      answer: `正解は「${answerChoice}」。${focus}を先に固定して判断する。`,
-      explanation: `${baseExplanation} ${context}では、${focus}を先に確認すると迷いにくくなります。`,
-      pitfall: `${basePitfall} ${warning}`,
-      terms,
-      trendTag: base.trendTag || PAST5_TREND_BY_TOPIC[topic.id] || "過去5年傾向に合わせた基礎問題"
-    });
-  }
-
-  function normalizeAutoPromptStem(prompt, topic) {
-    const text = String(prompt || "")
-      .replace(/^【[^】]*】/u, "")
-      .replace(/\s+/g, " ")
-      .replace(/[？?].*$/u, "")
-      .replace(/次のうち.*$/u, "")
-      .replace(/どれか.*$/u, "")
-      .replace(/どれ.*$/u, "")
-      .replace(/[。．]+$/u, "")
-      .trim();
-
-    if (!text) {
-      return `${topic.name}の基本論点`;
-    }
-    return text;
-  }
-
-  function normalizeAutoChoiceText(text) {
-    const clean = String(text || "")
-      .replace(/\s+/g, " ")
-      .replace(/[。．]+$/u, "")
-      .trim();
-    return clean || "要件を先に確認する";
-  }
-
-  function buildWrongChoicePool(topicLabel, bank, correctChoice) {
-    const pool = [];
-
-    if (Array.isArray(bank)) {
-      for (const item of bank) {
-        const choices = Array.isArray(item.choices) ? item.choices : [];
-        for (const choice of choices) {
-          pool.push(normalizeAutoChoiceText(choice));
-        }
-      }
-    }
-
-    for (const wrong of AUTO_WRONG_CHOICES) {
-      pool.push(normalizeAutoChoiceText(wrong));
-    }
-
-    const unique = [];
-    const seen = new Set();
-    for (const choice of pool) {
-      if (!choice || choice === correctChoice) {
-        continue;
-      }
-      if (seen.has(choice)) {
-        continue;
-      }
-      seen.add(choice);
-      unique.push(choice);
-    }
-
-    if (unique.length >= 2) {
-      return unique;
-    }
-
-    return [
-      "主語を確認せずに先に結論を選ぶ",
-      "期限を見ずに感覚だけで判断する",
-      `条文を見ずに${topicLabel}の記憶だけで答える`
-    ];
-  }
-
-  function arrangeAutoChoices(correctChoice, wrong1, wrong2, seed) {
-    const patterns = [
-      [0, 1, 2],
-      [1, 0, 2],
-      [2, 1, 0],
-      [0, 2, 1],
-      [1, 2, 0],
-      [2, 0, 1]
-    ];
-    const pattern = patterns[seed % patterns.length];
-    const baseChoices = [correctChoice, wrong1, wrong2];
-    const choices = pattern.map((index) => baseChoices[index]);
-    return {
-      choices,
-      correctIndex: pattern.indexOf(0)
-    };
+    return Math.max(1, seed);
   }
 
   function hasCompleteChoices(choices) {
