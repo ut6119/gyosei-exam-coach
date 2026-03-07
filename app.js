@@ -5,15 +5,7 @@
   const SYNC_CONFIG_KEY = "gyoseiExamCoach.sync.v1";
   const SYNC_GIST_FILENAME = "gyosei-sync.json";
   const SYNC_SCHEMA_VERSION = 1;
-  const FIREBASE_WEB_CONFIG = {
-    projectId: "receipt-app-35ec3",
-    appId: "1:351411116532:web:b964a920add3e32f9841a1",
-    storageBucket: "receipt-app-35ec3.firebasestorage.app",
-    apiKey: "REPLACE_WITH_FIREBASE_API_KEY",
-    authDomain: "receipt-app-35ec3.firebaseapp.com",
-    messagingSenderId: "351411116532",
-    measurementId: "G-VY4BG6ZWPB"
-  };
+  const FIREBASE_INIT_CONFIG_URL = "https://receipt-app-35ec3.web.app/__/firebase/init.json";
   const FIREBASE_SYNC_COLLECTION = "gyoseiExamCoach";
   const FIREBASE_SYNC_DOC_ID = "sync";
   const RESEARCH_UPDATED_AT = "2026-03-07";
@@ -2154,7 +2146,7 @@
     renderAll();
   }
 
-  function initGoogleCloudSync() {
+  async function initGoogleCloudSync() {
     const sdk = window.firebase;
     if (!sdk || typeof sdk.initializeApp !== "function") {
       setGoogleSyncStatus("同期状態: Firebase SDKの読み込みに失敗しました。", true);
@@ -2162,8 +2154,9 @@
     }
 
     try {
+      const firebaseWebConfig = await loadFirebaseWebConfig();
       if (!sdk.apps || sdk.apps.length === 0) {
-        sdk.initializeApp(FIREBASE_WEB_CONFIG);
+        sdk.initializeApp(firebaseWebConfig);
       }
       firebaseAuth = sdk.auth();
       firebaseDb = sdk.firestore();
@@ -2194,6 +2187,24 @@
       firebaseDb = null;
       setGoogleSyncStatus(`同期状態: Firebase初期化失敗 (${formatGoogleAuthError(error)})`, true);
     }
+  }
+
+  async function loadFirebaseWebConfig() {
+    const response = await fetch(FIREBASE_INIT_CONFIG_URL, { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error(`Firebase設定取得失敗: ${response.status}`);
+    }
+    const config = await response.json();
+    const hasRequired = config
+      && typeof config === "object"
+      && String(config.apiKey || "").trim()
+      && String(config.appId || "").trim()
+      && String(config.projectId || "").trim()
+      && String(config.authDomain || "").trim();
+    if (!hasRequired) {
+      throw new Error("Firebase設定が不正です。");
+    }
+    return config;
   }
 
   async function onGoogleSignIn() {
