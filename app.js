@@ -4077,6 +4077,7 @@
       const withVariant = applyGlobalUniquenessVariant(topic, safeQuestionNo, picked.entry);
       return normalizeQuestion({
         ...withVariant,
+        prompt: toExamLikeDrillPrompt(withVariant.prompt, topic),
         trendTag: withVariant.trendTag || PAST5_TREND_BY_TOPIC[topic.id] || ""
       });
     }
@@ -4087,7 +4088,7 @@
       : ["主語を確認する。", "要件を確認する。", "例外を確認する。"];
 
     return normalizeQuestion({
-      prompt: `【3択】${topic.name} Q${safeQuestionNo}\n次のうち正しい学習アクションはどれ？`,
+      prompt: toExamLikeDrillPrompt(`【3択】${topic.name} Q${safeQuestionNo}\n次のうち正しい学習アクションはどれ？`, topic),
       choices: [
         `${points[0]} を先に確認する`,
         "主語や期限を見ずに感覚で解く",
@@ -4100,6 +4101,57 @@
       terms: defaultTermsForTopic(topic),
       trendTag: PAST5_TREND_BY_TOPIC[topic.id] || "過去5年傾向に合わせた基礎問題"
     });
+  }
+
+  function toExamLikeDrillPrompt(rawPrompt, topic) {
+    const normalized = normalizePromptCore(rawPrompt, topic);
+    if (!normalized) {
+      return `${topic.name}に関する記述として、最も適切なものはどれか。`;
+    }
+    if (/最も(妥当|適切)なものはどれか/u.test(normalized)) {
+      return normalized;
+    }
+    if (/(状態|場合|場面|とき|時)$/u.test(normalized)) {
+      return `${normalized}を指す用語として、最も適切なものはどれか。`;
+    }
+    if (/(制度|手続|訴訟|訴え|効果|原則|抗弁|基準|説明|権限|機関|決議|義務|考え方|行為|対応|根拠)$/u.test(normalized)) {
+      return `${normalized}として、最も適切なものはどれか。`;
+    }
+    return `${normalized}に関する記述として、最も適切なものはどれか。`;
+  }
+
+  function normalizePromptCore(rawPrompt, topic) {
+    let text = String(rawPrompt || "")
+      .replace(/^【[^】]*】/u, "")
+      .replace(/\r?\n+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    if (!text) {
+      return "";
+    }
+
+    text = text
+      .replace(new RegExp(`^${escapeRegex(String(topic && topic.name || "").trim())}\\s*Q\\d+\\s*`, "u"), "")
+      .replace(/^(本番風問題|小テスト問題|模試問題)\s*[:：]\s*/u, "")
+      .replace(/^[QＱ]\d+\s*/u, "")
+      .replace(/次のうち/u, "")
+      .replace(/[？?]+$/u, "")
+      .trim();
+
+    text = text
+      .replace(/はどれ(か)?$/u, "")
+      .replace(/はどれか$/u, "")
+      .replace(/どれか$/u, "")
+      .replace(/どれ$/u, "")
+      .replace(/[。．]+$/u, "")
+      .trim();
+
+    return text;
+  }
+
+  function escapeRegex(value) {
+    return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   }
 
   function getPastLikeChoiceBank(topicId) {
