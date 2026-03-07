@@ -4972,26 +4972,62 @@
   }
 
   function buildFriendlyDrillNote(topic, detail) {
-    let core = normalizePromptCore(detail && detail.prompt ? detail.prompt : "", topic)
-      .replace(/を指す用語として、?\s*最も適切なもの$/u, "")
-      .replace(/に関する記述として、?\s*最も適切なもの$/u, "")
-      .replace(/として、?\s*最も適切なもの$/u, "")
+    const corpus = `${String(detail && detail.prompt || "")} ${String(detail && detail.answer || "")} ${String(detail && detail.explanation || "")} ${String(detail && detail.pitfall || "")}`;
+
+    if (/国家賠償法1条と2条/u.test(corpus)) {
+      return "かんたんに言うと、1条は公務員の違法な仕事による損害、2条は道路や橋などの公共施設の管理ミスによる損害、という分け方を覚える問題です。";
+    }
+    if (/国家賠償法2条|営造物|瑕疵|道路など公の施設/u.test(corpus)) {
+      return "かんたんに言うと、道路や橋などの公共施設の管理ミスで損害が出たときは、国家賠償法2条を使うってことです。";
+    }
+    if (/申請.*相当期間.*処分.*しない|不作為/u.test(corpus)) {
+      return "かんたんに言うと、申請を出したのに役所が長く返事をしない状態を、法律では不作為と呼ぶってことです。";
+    }
+    if (/取消訴訟/u.test(corpus) && /無効等確認訴訟/u.test(corpus)) {
+      return "かんたんに言うと、取消訴訟は処分をあとから取り消す裁判、無効等確認訴訟は最初から無効かを確認する裁判、という違いを押さえる問題です。";
+    }
+    if (/義務付け訴訟/u.test(corpus) && /差止訴訟/u.test(corpus)) {
+      return "かんたんに言うと、義務付け訴訟は『してもらう』、差止訴訟は『止める』を求める裁判、という向きの違いを確認する問題です。";
+    }
+
+    const source = String(detail && (detail.answer || detail.explanation || detail.pitfall) || "").trim();
+    const simplified = simplifyFriendlySentence(source);
+    if (simplified) {
+      return `かんたんに言うと、${simplified}`;
+    }
+    return "かんたんに言うと、正解のルールを1つずつ覚えるための問題です。";
+  }
+
+  function simplifyFriendlySentence(text) {
+    let value = String(text || "").trim();
+    if (!value) {
+      return "";
+    }
+
+    value = value
+      .replace(/^補足[:：]\s*/u, "")
       .replace(/\s+/g, " ")
-      .trim();
+      .replace(/公の営造物/u, "道路や橋などの公共施設")
+      .replace(/瑕疵/u, "管理ミス")
+      .replace(/不作為/u, "役所が返事をしない状態")
+      .replace(/審査請求/u, "行政への見直し申立て")
+      .replace(/処分庁/u, "最初に処分した役所")
+      .replace(/審査庁/u, "見直しを判断する役所")
+      .replace(/執行停止/u, "いったん効力を止める手続")
+      .replace(/教示/u, "不服申立て先などの案内")
+      .replace(/義務付け訴訟/u, "行政に処分をするよう求める裁判")
+      .replace(/差止訴訟/u, "違法な処分を止める裁判")
+      .replace(/取消訴訟/u, "すでに出た処分を取り消す裁判")
+      .replace(/無効等確認訴訟/u, "最初から無効かを確認する裁判")
+      .replace(/が基本。?$/u, "が基本ルール。")
+      .replace(/を対象とする。?$/u, "が対象になる。")
+      .replace(/と整理する。?$/u, "と覚える。")
+      .replace(/[。．]+$/u, "。");
 
-    if (!core) {
-      return "かんたんに言うと、重要ポイントを短く確認する問題です。";
+    if (!/[。！？]$/u.test(value)) {
+      value = `${value}。`;
     }
-
-    if (/申請.*相当期間.*処分.*しない/u.test(core)) {
-      return "かんたんに言うと、申請を出したのに、役所が長く返事をしない状態ってこと。";
-    }
-
-    if (/(状態|場合|場面|とき|時|手続|制度|訴訟)$/u.test(core)) {
-      return `かんたんに言うと、${core}ってこと。`;
-    }
-
-    return `かんたんに言うと、「${core}」を確認する問題です。`;
+    return value;
   }
 
   function enhanceAnswerLine(answer, detail) {
