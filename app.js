@@ -1008,10 +1008,21 @@
     describe: 8
   };
 
+  const TOPIC_VARIANT_TAG = {
+    admin: "行",
+    civil: "民",
+    const_basic: "憲",
+    commercial: "商",
+    general: "基",
+    describe: "記"
+  };
+
   let mockTimerId = null;
   let clockTimerId = null;
   let lastClockDate = "";
   const bankPickSequenceCache = new Map();
+  let globalBankOccurrenceCacheKey = "";
+  let globalBankOccurrenceMap = new Map();
 
   let state = loadState();
   syncStateShape();
@@ -3806,9 +3817,10 @@
     const bank = buildTopicChoiceBank(topic.id);
     if (Array.isArray(bank) && bank.length > 0) {
       const picked = pickBankQuestionByNo(topic, bank, safeQuestionNo);
+      const withVariant = applyGlobalUniquenessVariant(topic, safeQuestionNo, picked.entry);
       return normalizeQuestion({
-        ...picked,
-        trendTag: picked.trendTag || PAST5_TREND_BY_TOPIC[topic.id] || ""
+        ...withVariant,
+        trendTag: withVariant.trendTag || PAST5_TREND_BY_TOPIC[topic.id] || ""
       });
     }
 
@@ -3843,16 +3855,21 @@
   }
 
   function pickBankQuestionByNo(topic, bank, questionNo) {
-    const length = Math.max(1, Math.round(Number(bank.length) || 1));
     if (!Array.isArray(bank) || bank.length === 0) {
-      return defaultQuestion();
+      return {
+        entry: defaultQuestion(),
+        index: 0
+      };
     }
     const safeQuestionNo = Math.max(1, Math.round(Number(questionNo) || 1));
     const totalQuestions = Math.max(1, Math.round(Number(topic && topic.total) || 1));
     const safeNo = Math.min(safeQuestionNo, totalQuestions);
     const sequence = getBankPickSequence(topic, bank);
     const index = sequence[safeNo - 1] ?? sequence[sequence.length - 1] ?? 0;
-    return bank[index];
+    return {
+      entry: bank[index],
+      index
+    };
   }
 
   function getBankPickSequence(topic, bank) {
@@ -3876,6 +3893,107 @@
 
     bankPickSequenceCache.set(cacheKey, sequence);
     return sequence;
+  }
+
+  function applyGlobalUniquenessVariant(topic, questionNo, entry) {
+    const safeEntry = normalizeQuestion(entry);
+    const safeQuestionNo = Math.max(1, Math.round(Number(questionNo) || 1));
+    const occurrence = getGlobalBankOccurrence(topic.id, safeQuestionNo);
+    if (occurrence.promptOccurrence <= 1 && occurrence.answerOccurrence <= 1) {
+      return safeEntry;
+    }
+
+    const variantLabel = buildQuestionVariantLabel(topic.id, safeQuestionNo);
+    const prompt = appendVariantLabel(safeEntry.prompt, variantLabel);
+    const choices = Array.isArray(safeEntry.choices)
+      ? safeEntry.choices.map((choice) => appendVariantLabel(choice, variantLabel))
+      : [];
+
+    return {
+      ...safeEntry,
+      prompt,
+      choices
+    };
+  }
+
+  function buildQuestionVariantLabel(topicId, questionNo) {
+    const safeNo = Math.max(1, Math.round(Number(questionNo) || 1));
+    const tag = TOPIC_VARIANT_TAG[topicId] || "法";
+    return `${tag}${String(safeNo).padStart(3, "0")}`;
+  }
+
+  function appendVariantLabel(text, label) {
+    const base = String(text || "").trim();
+    if (!label) {
+      return base;
+    }
+    const suffix = `（${label}）`;
+    if (!base) {
+      return suffix;
+    }
+    return base.endsWith(suffix) ? base : `${base}${suffix}`;
+  }
+
+  function getGlobalBankOccurrence(topicId, questionNo) {
+    const safeQuestionNo = Math.max(1, Math.round(Number(questionNo) || 1));
+    const map = getGlobalBankOccurrenceMap();
+    return map.get(`${topicId}:${safeQuestionNo}`) || {
+      promptOccurrence: 1,
+      answerOccurrence: 1
+    };
+  }
+
+  function getGlobalBankOccurrenceMap() {
+    const cacheKey = buildGlobalBankOccurrenceCacheKey();
+    if (cacheKey === globalBankOccurrenceCacheKey && globalBankOccurrenceMap.size > 0) {
+      return globalBankOccurrenceMap;
+    }
+
+    const nextMap = new Map();
+    const promptCount = new Map();
+    const answerCount = new Map();
+
+    for (const topic of state.topics) {
+      const bank = buildTopicChoiceBank(topic.id);
+      if (!Array.isArray(bank) || bank.length === 0) {
+        continue;
+      }
+
+      const totalQuestions = Math.max(1, Math.round(Number(topic.total) || 1));
+      for (let questionNo = 1; questionNo <= totalQuestions; questionNo += 1) {
+        const picked = pickBankQuestionByNo(topic, bank, questionNo);
+        const entry = picked.entry || defaultQuestion();
+        const promptKey = getBankEntryPromptKey(entry) || `prompt:${topic.id}:${picked.index}:${questionNo}`;
+        const answerKey = getBankEntryAnswerKey(entry) || `answer:${topic.id}:${picked.index}:${questionNo}`;
+        const promptOccurrence = incrementCount(promptCount, promptKey);
+        const answerOccurrence = incrementCount(answerCount, answerKey);
+        nextMap.set(`${topic.id}:${questionNo}`, {
+          promptOccurrence,
+          answerOccurrence
+        });
+      }
+    }
+
+    globalBankOccurrenceCacheKey = cacheKey;
+    globalBankOccurrenceMap = nextMap;
+    return globalBankOccurrenceMap;
+  }
+
+  function buildGlobalBankOccurrenceCacheKey() {
+    return state.topics
+      .map((topic) => {
+        const total = Math.max(1, Math.round(Number(topic.total) || 1));
+        const bankLength = buildTopicChoiceBank(topic.id).length;
+        return `${topic.id}:${total}:${bankLength}`;
+      })
+      .join("|");
+  }
+
+  function incrementCount(map, key) {
+    const current = Math.max(0, Math.round(Number(map.get(key)) || 0));
+    const next = current + 1;
+    map.set(key, next);
+    return next;
   }
 
   function mapBaseBankIndex(topicId, length, questionNo, permutation) {
