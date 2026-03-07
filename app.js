@@ -4374,7 +4374,6 @@
       const correct = detail.choices[detail.correctIndex] || "";
       byId("singleChoiceLine").textContent = `あなたの回答: ${picked} / 正解: ${correct}`;
       byId("singleEasyLine").textContent = buildFriendlyDrillNote(current.topic, detail);
-      byId("singleAnswerLine").textContent = `正答根拠: ${enhanceAnswerLine(detail.answer, detail)}`;
       byId("singleExplanationLine").textContent = `解説: ${enhanceExplanationLine(detail.explanation, detail)}`;
       byId("singlePitfallLine").textContent = `間違えやすい点: ${enhancePitfallLine(detail.pitfall, detail)}`;
     } else {
@@ -4385,7 +4384,6 @@
       explanation.open = false;
       byId("singleChoiceLine").textContent = "";
       byId("singleEasyLine").textContent = "";
-      byId("singleAnswerLine").textContent = "";
       byId("singleExplanationLine").textContent = "";
       byId("singlePitfallLine").textContent = "";
     }
@@ -4562,7 +4560,6 @@
       explanationAccordion.open = false;
       byId("drillChoiceLine").textContent = "";
       byId("drillEasyLine").textContent = "";
-      byId("drillAnswerLine").textContent = "";
       byId("drillExplanationLine").textContent = "";
       byId("drillPitfallLine").textContent = "";
       byId("drillTermsLine").textContent = "";
@@ -4641,7 +4638,6 @@
       const correct = detail.choices[detail.correctIndex] || "";
       byId("drillChoiceLine").textContent = `あなたの回答: ${picked} / 正解: ${correct}`;
       byId("drillEasyLine").textContent = buildFriendlyDrillNote(current.topic, detail);
-      byId("drillAnswerLine").textContent = `正答根拠: ${enhanceAnswerLine(detail.answer, detail)}`;
       byId("drillExplanationLine").textContent = `解説: ${enhanceExplanationLine(detail.explanation, detail)}`;
       byId("drillPitfallLine").textContent = `間違えやすい点: ${enhancePitfallLine(detail.pitfall, detail)}`;
       const trendTail = detail.trendTag ? ` / ${detail.trendTag}` : "";
@@ -4660,7 +4656,6 @@
     editBtn.classList.remove("hidden");
     byId("drillChoiceLine").textContent = "";
     byId("drillEasyLine").textContent = "";
-    byId("drillAnswerLine").textContent = "";
     byId("drillExplanationLine").textContent = "";
     byId("drillPitfallLine").textContent = "";
     byId("drillTermsLine").textContent = "";
@@ -5710,7 +5705,6 @@
             <span class="primerSentence">${escapeHtml(buildPreStudySentence(topic, section, questionNo, detail))}</span>
           </summary>
           <div class="primerQuestionBody">
-            <p class="note">正答根拠: ${escapeHtml(enhanceAnswerLine(detail.answer, detail))}</p>
             <p class="note">解説: ${escapeHtml(enhanceExplanationLine(detail.explanation, detail))}</p>
             <p class="note">間違えやすい点: ${escapeHtml(enhancePitfallLine(detail.pitfall, detail))}</p>
           </div>
