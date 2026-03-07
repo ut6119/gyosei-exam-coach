@@ -109,8 +109,23 @@
         <button id="saveSettingsBtn" type="button">設定を保存</button>
 
         <div class="summaryBox">
+          <p class="questionHead">Googleログイン同期（推奨）</p>
+          <p class="note">PCとiPhoneで同じGoogleアカウントにログインすると、進捗をクラウド同期できます。</p>
+          <div class="row">
+            <button id="googleSignInBtn" type="button">Googleでログイン</button>
+            <button id="googleSignOutBtn" type="button">ログアウト</button>
+          </div>
+          <div class="row">
+            <button id="googleSyncPushBtn" type="button">この端末→クラウド</button>
+            <button id="googleSyncPullBtn" type="button">クラウド→この端末</button>
+          </div>
+          <p id="googleAuthLine" class="note">ログイン状態: 未ログイン</p>
+          <p id="googleSyncStatusLine" class="note">同期状態: 未同期</p>
+        </div>
+
+        <div class="summaryBox">
           <p class="questionHead">PC・iPhone 同期（進捗共有）</p>
-          <p class="note">GitHub Gist を使って進捗を同期します。同じ設定を両端末に入れてください。</p>
+          <p class="note">GitHub Gist を使う手動同期（予備）。同じ設定を両端末に入れてください。</p>
           <div class="row stacked">
             <label for="syncTokenInput">GitHubトークン（gist権限）</label>
             <input id="syncTokenInput" type="password" autocomplete="off" placeholder="ghp_..." />
@@ -418,9 +433,12 @@
     </main>
 
     <footer>
-      <small>Local only / データはブラウザ保存(localStorage)</small>
+      <small>ローカル保存 + 任意のクラウド同期（Google/Firebase または GitHub Gist）</small>
     </footer>
 
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
     <script src="./app.js"></script>
   </body>
 </html>
