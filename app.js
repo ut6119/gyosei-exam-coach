@@ -3885,23 +3885,21 @@
     const completeDate = getCompleteDate();
     const phase = phaseByDays(completeDaysLeft);
     const dailyTarget = getDailyTargetCount();
-    const needPerDay = getNeedBasedQuestions();
+    const remainingQuestions = getRemainingUniqueQuestions();
+    const solvedQuestions = getSolvedUniqueQuestions();
+    const totalQuestions = remainingQuestions + solvedQuestions;
+    const scheduleDays = Math.max(1, completeDaysLeft);
+    const needPerDay = remainingQuestions > 0 ? Math.ceil(remainingQuestions / scheduleDays) : 0;
     const capacityPerDay = getTimeBasedQuestions();
-    const remainingTotal = getRemainingTotalEffort();
-    const forecastDays = Math.max(0, Math.ceil(remainingTotal / Math.max(1, capacityPerDay)));
+    const forecastDays = Math.max(0, Math.ceil(remainingQuestions / Math.max(1, capacityPerDay)));
     const paceGap = capacityPerDay - needPerDay;
-    const totalSections = state.topics.reduce((sum, topic) => sum + getTopicSections(topic).length, 0);
-    const clearedSections = state.topics.reduce((sum, topic) => {
-      const progress = state.progress[topic.id] || defaultProgress();
-      return sum + Math.min(getTopicSections(topic).length, progress.sectionClears);
-    }, 0);
 
     byId("daysLeft").textContent = completeDaysLeft >= 0 ? `${completeDaysLeft}日` : "期限超過";
     byId("phaseLabel").textContent = phase.label;
     byId("dailyTarget").textContent = `${dailyTarget}問`;
-    byId("needPerDayLine").textContent = `${needPerDay}問/日`;
+    byId("needPerDayLine").textContent = `残り${remainingQuestions}問 ÷ ${scheduleDays}日 = ${needPerDay}問/日`;
     byId("capacityPerDayLine").textContent = `${capacityPerDay}問/日`;
-    byId("forecastLine").textContent = `残り想定 ${forecastDays}日`;
+    byId("forecastLine").textContent = `今の設定なら ${forecastDays}日で消化見込み`;
 
     let deltaText = "ぴったり";
     let paceTone = "isGood";
@@ -3917,10 +3915,10 @@
     }
     byId("paceDeltaLine").textContent = deltaText;
 
-    setGauge("overallProgressGaugeFill", "overallProgressGaugeLabel", clearedSections, totalSections, "未設定");
+    setGauge("overallProgressGaugeFill", "overallProgressGaugeLabel", solvedQuestions, totalQuestions, "未設定");
     const paceTotal = Math.max(needPerDay, capacityPerDay, 1);
     const pacePercent = setGauge("paceGaugeFill", "paceGaugeLabel", capacityPerDay, paceTotal, "未設定");
-    setProgressFillTone("overallProgressGaugeFill", totalSections > 0 && clearedSections >= totalSections ? "isGood" : "default");
+    setProgressFillTone("overallProgressGaugeFill", totalQuestions > 0 && solvedQuestions >= totalQuestions ? "isGood" : "default");
     setProgressFillTone("paceGaugeFill", paceTone);
 
     const paceStatus = byId("paceStatusNote");
@@ -3931,7 +3929,7 @@
       paceStatus.textContent = `今の設定で必要量ちょうどです。今日のノルマ ${dailyTarget}問 を崩さなければ締切線に乗ります。`;
       paceStatus.classList.remove("isError");
     } else {
-      paceStatus.textContent = `今の設定ペースは必要量より ${paceGap}問/日 余裕があります。ただしこれは問題消化ベースで、予習・復習・模試の時間は別です。`;
+      paceStatus.textContent = `今の設定ペースは必要量より ${paceGap}問/日 余裕があります。残り${remainingQuestions}問なら、今の設定で ${forecastDays}日ほどで消化見込みです。`;
       paceStatus.classList.remove("isError");
     }
 
@@ -3950,7 +3948,7 @@
     }
 
     if (needPerDay > capacityPerDay) {
-      note += ` 現在の学習時間設定だと必要量(${needPerDay}問/日)に不足するため、時間増加か問題数上書きを推奨。`;
+      note += ` 残り${remainingQuestions}問に対して必要量(${needPerDay}問/日)に不足するため、時間増加か問題数上書きを推奨。`;
     } else if (pacePercent >= 100) {
       note += " 現在の設定ペースは必要量を満たしています。";
     }
@@ -5992,6 +5990,23 @@
     const daysLeft = Math.max(1, getDaysUntilCompleteDate());
     const remaining = getRemainingTotalEffort();
     return Math.max(1, Math.ceil(remaining / daysLeft));
+  }
+
+  function getSolvedUniqueQuestions() {
+    let solved = 0;
+    for (const topic of state.topics) {
+      for (let questionNo = 1; questionNo <= topic.total; questionNo += 1) {
+        if (getQuestionStat(topic.id, questionNo).correct > 0) {
+          solved += 1;
+        }
+      }
+    }
+    return solved;
+  }
+
+  function getRemainingUniqueQuestions() {
+    const totalQuestions = state.topics.reduce((sum, topic) => sum + topic.total, 0);
+    return Math.max(0, totalQuestions - getSolvedUniqueQuestions());
   }
 
   function getRemainingTotalEffort() {
