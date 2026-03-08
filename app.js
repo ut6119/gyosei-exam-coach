@@ -3890,15 +3890,15 @@
     const totalQuestions = remainingQuestions + solvedQuestions;
     const scheduleDays = Math.max(1, completeDaysLeft);
     const needPerDay = remainingQuestions > 0 ? Math.ceil(remainingQuestions / scheduleDays) : 0;
-    const capacityPerDay = getTimeBasedQuestions();
-    const forecastDays = Math.max(0, Math.ceil(remainingQuestions / Math.max(1, capacityPerDay)));
-    const paceGap = capacityPerDay - needPerDay;
+    const targetPerDay = dailyTarget;
+    const forecastDays = Math.max(0, Math.ceil(remainingQuestions / Math.max(1, targetPerDay)));
+    const paceGap = targetPerDay - needPerDay;
 
     byId("daysLeft").textContent = completeDaysLeft >= 0 ? `${completeDaysLeft}日` : "期限超過";
     byId("phaseLabel").textContent = phase.label;
     byId("dailyTarget").textContent = `${dailyTarget}問`;
     byId("needPerDayLine").textContent = `残り${remainingQuestions}問 ÷ ${scheduleDays}日 = ${needPerDay}問/日`;
-    byId("capacityPerDayLine").textContent = `${capacityPerDay}問/日`;
+    byId("capacityPerDayLine").textContent = `${targetPerDay}問/日`;
     byId("forecastLine").textContent = `今の設定なら ${forecastDays}日で消化見込み`;
 
     let deltaText = "ぴったり";
@@ -3916,20 +3916,20 @@
     byId("paceDeltaLine").textContent = deltaText;
 
     setGauge("overallProgressGaugeFill", "overallProgressGaugeLabel", solvedQuestions, totalQuestions, "未設定");
-    const paceTotal = Math.max(needPerDay, capacityPerDay, 1);
-    const pacePercent = setGauge("paceGaugeFill", "paceGaugeLabel", capacityPerDay, paceTotal, "未設定");
+    const paceTotal = Math.max(needPerDay, targetPerDay, 1);
+    const pacePercent = setGauge("paceGaugeFill", "paceGaugeLabel", targetPerDay, paceTotal, "未設定");
     setProgressFillTone("overallProgressGaugeFill", totalQuestions > 0 && solvedQuestions >= totalQuestions ? "isGood" : "default");
     setProgressFillTone("paceGaugeFill", paceTone);
 
     const paceStatus = byId("paceStatusNote");
     if (paceGap < 0) {
-      paceStatus.textContent = `今の設定ペースは必要量より ${Math.abs(paceGap)}問/日 足りません。1日の学習時間を増やすか、今日の問題数を上書きしてください。`;
+      paceStatus.textContent = `今の目標ペースは必要量より ${Math.abs(paceGap)}問/日 足りません。1日の学習時間を増やすか、今日の問題数を上書きしてください。`;
       paceStatus.classList.add("isError");
     } else if (paceGap === 0) {
-      paceStatus.textContent = `今の設定で必要量ちょうどです。今日のノルマ ${dailyTarget}問 を崩さなければ締切線に乗ります。`;
+      paceStatus.textContent = `今の目標ペースで必要量ちょうどです。今日のノルマ ${dailyTarget}問 を崩さなければ締切線に乗ります。`;
       paceStatus.classList.remove("isError");
     } else {
-      paceStatus.textContent = `今の設定ペースは必要量より ${paceGap}問/日 余裕があります。残り${remainingQuestions}問なら、今の設定で ${forecastDays}日ほどで消化見込みです。`;
+      paceStatus.textContent = `今の目標ペースは必要量より ${paceGap}問/日 余裕があります。残り${remainingQuestions}問なら、今の設定で ${forecastDays}日ほどで消化見込みです。`;
       paceStatus.classList.remove("isError");
     }
 
@@ -3947,7 +3947,7 @@
       note += " 仕上げ期限を過ぎています。今日の問題数を増やしてください。";
     }
 
-    if (needPerDay > capacityPerDay) {
+    if (needPerDay > targetPerDay) {
       note += ` 残り${remainingQuestions}問に対して必要量(${needPerDay}問/日)に不足するため、時間増加か問題数上書きを推奨。`;
     } else if (pacePercent >= 100) {
       note += " 現在の設定ペースは必要量を満たしています。";
