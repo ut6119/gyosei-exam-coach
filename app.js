@@ -1459,8 +1459,7 @@
       lastLocalPushedAt: "",
       googleLastRemoteUpdatedAt: "",
       googleLastLocalPushedAt: "",
-      googleLastPulledAt: "",
-      firebaseApiKeyOverride: ""
+      googleLastPulledAt: ""
     };
   }
 
@@ -1481,8 +1480,7 @@
         lastLocalPushedAt: String(parsed.lastLocalPushedAt || "").trim(),
         googleLastRemoteUpdatedAt: String(parsed.googleLastRemoteUpdatedAt || "").trim(),
         googleLastLocalPushedAt: String(parsed.googleLastLocalPushedAt || "").trim(),
-        googleLastPulledAt: String(parsed.googleLastPulledAt || "").trim(),
-        firebaseApiKeyOverride: String(parsed.firebaseApiKeyOverride || "").trim()
+        googleLastPulledAt: String(parsed.googleLastPulledAt || "").trim()
       };
     } catch (_error) {
       return defaultSyncConfig();
@@ -1947,8 +1945,6 @@
     byId("homeNavGrid").addEventListener("click", onHomeNavClick);
     byId("saveExamDateBtn").addEventListener("click", onSaveExamDate);
     byId("saveSettingsBtn").addEventListener("click", onSaveSettings);
-    byId("saveFirebaseApiKeyBtn").addEventListener("click", onSaveFirebaseApiKeyOverride);
-    byId("clearFirebaseApiKeyBtn").addEventListener("click", onClearFirebaseApiKeyOverride);
     byId("googleSignInBtn").addEventListener("click", onGoogleSignIn);
     byId("googleSignOutBtn").addEventListener("click", onGoogleSignOut);
     byId("googleSyncPushBtn").addEventListener("click", onGoogleSyncPush);
@@ -2201,9 +2197,6 @@
     } catch (_error) {
       config = await fetchFirebaseConfigFromHosting();
     }
-    if (syncConfig.firebaseApiKeyOverride) {
-      config.apiKey = syncConfig.firebaseApiKeyOverride;
-    }
     const hasRequired = config
       && typeof config === "object"
       && String(config.apiKey || "").trim()
@@ -2230,25 +2223,6 @@
       throw new Error(`Firebase設定取得失敗: ${response.status}`);
     }
     return await response.json();
-  }
-
-  function onSaveFirebaseApiKeyOverride() {
-    const value = byId("firebaseApiKeyOverrideInput").value.trim();
-    if (!/^AIza[0-9A-Za-z_-]{20,}$/u.test(value)) {
-      alert("Firebase APIキーの形式が不正です。");
-      return;
-    }
-    syncConfig.firebaseApiKeyOverride = value;
-    saveSyncConfig();
-    alert("この端末にFirebase APIキー上書きを保存しました。再読み込みします。");
-    window.location.reload();
-  }
-
-  function onClearFirebaseApiKeyOverride() {
-    syncConfig.firebaseApiKeyOverride = "";
-    saveSyncConfig();
-    alert("Firebase APIキー上書きを削除しました。再読み込みします。");
-    window.location.reload();
   }
 
   async function onGoogleSignIn() {
@@ -4109,7 +4083,6 @@
     byId("dailyMinutesInput").value = String(state.settings.dailyMinutes);
     byId("targetPerfectRoundsInput").value = String(state.settings.targetPerfectRounds);
     byId("todayQuestionOverrideInput").value = state.settings.todayQuestionOverride;
-    byId("firebaseApiKeyOverrideInput").value = syncConfig.firebaseApiKeyOverride || "";
 
     const authLine = firebaseUser && firebaseUser.uid
       ? `ログイン状態: ${firebaseUser.email || firebaseUser.uid}`
