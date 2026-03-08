@@ -10,6 +10,12 @@
     <header class="hero">
       <h1>行政書士 合格ループコーチ</h1>
       <p>満点連続で前進。1ミスはそのセクション先頭へ。試験日から逆算して毎日の積み上げを続ける。</p>
+      <div class="heroMeta">
+        <span class="heroChip">iPhone最適化</span>
+        <span class="heroChip">Google同期</span>
+        <span class="heroChip">3択反復</span>
+        <span class="heroChip">本番7日前に完成</span>
+      </div>
     </header>
 
     <nav id="focusTabBar" class="focusTabBar" aria-label="主要タブ">
@@ -47,6 +53,7 @@
       <section class="card" id="homeCard">
         <h2>0. ホーム</h2>
         <p class="note">番号をタップすると、その画面に移動します。</p>
+        <div id="homeOverviewPanel" class="homeOverviewPanel"></div>
         <div id="homeNavGrid" class="homeNavGrid">
           <button type="button" class="homeNavBtn" data-target="dashboardCard"><span class="homeNum">1</span><span>本番カウント</span></button>
           <button type="button" class="homeNavBtn" data-target="settingsCard"><span class="homeNum">2</span><span>学習設定</span></button>
@@ -111,6 +118,7 @@
         <div class="summaryBox">
           <p class="questionHead">Googleログイン同期（推奨）</p>
           <p class="note">PCとiPhoneで同じGoogleアカウントにログインすると、進捗をクラウド同期できます。</p>
+          <div id="syncStatusPanel" class="syncStatusPanel"></div>
           <div class="row">
             <button id="googleSignInBtn" type="button">Googleでログイン</button>
             <button id="googleSignOutBtn" type="button">ログアウト</button>

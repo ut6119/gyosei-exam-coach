@@ -3768,6 +3768,7 @@
 
     renderDashboard();
     renderSettings();
+    renderHome();
     renderProblemMenu();
     renderSinglePractice();
     renderTopics();
@@ -3784,6 +3785,88 @@
     applyFocusTabLayout(false);
     ensureMockTimer();
     ensureClockTimer();
+  }
+
+  function renderHome() {
+    const panel = byId("homeOverviewPanel");
+    if (!panel) {
+      return;
+    }
+
+    const completeDaysLeft = getDaysUntilCompleteDate();
+    const phase = phaseByDays(completeDaysLeft);
+    const dailyTarget = getDailyTargetCount();
+    const totalSections = state.topics.reduce((sum, topic) => sum + getTopicSections(topic).length, 0);
+    const clearedSections = state.topics.reduce((sum, topic) => {
+      const progress = state.progress[topic.id] || defaultProgress();
+      return sum + Math.min(getTopicSections(topic).length, progress.sectionClears);
+    }, 0);
+    const totalQuestions = state.topics.reduce((sum, topic) => sum + topic.total, 0);
+    const solvedQuestions = state.topics.reduce((sum, topic) => {
+      let solved = 0;
+      for (let questionNo = 1; questionNo <= topic.total; questionNo += 1) {
+        if (getQuestionStat(topic.id, questionNo).correct > 0) {
+          solved += 1;
+        }
+      }
+      return sum + solved;
+    }, 0);
+    const activeTopic = state.topics.find((topic) => !(state.progress[topic.id] || defaultProgress()).mastered) || state.topics[0] || null;
+    const activeSection = activeTopic
+      ? getCurrentSection(activeTopic, (state.progress[activeTopic.id] || defaultProgress()).nextQuestion)
+      : null;
+    const planCount = getTodayPlannedCount();
+    const syncLoggedIn = Boolean(firebaseUser && firebaseUser.uid);
+    const syncBadgeClass = syncLoggedIn ? "isOk" : googleSyncRuntimeError ? "isWarn" : "";
+    const syncBadgeText = syncLoggedIn ? "Google同期オン" : googleSyncRuntimeError ? "同期要確認" : "未ログイン";
+    const leadTitle = state.trainingCycle.pendingMiniTest
+      ? "次は小テストを先に実施"
+      : activeTopic && activeSection
+        ? `${activeTopic.name} / ${activeSection.name} を進める日`
+        : "まずは問題セットを確認";
+    const leadBody = state.trainingCycle.pendingMiniTest
+      ? `セクション${SECTION_CLEAR_TARGET}個クリア済みです。今日のドリルより先に小テストを入れる流れです。`
+      : activeTopic && activeSection
+        ? `今日の中心は Q${activeSection.start}-${activeSection.end} です。先に予習を読んでから反復ドリルに入る構成です。`
+        : "ホームから学習設定と問題メニューを開いて準備してください。";
+
+    panel.innerHTML = `
+      <div class="homeOverviewHero">
+        <section class="homeOverviewLead">
+          <span class="eyebrow">Today Focus</span>
+          <strong>${escapeHtml(leadTitle)}</strong>
+          <p>${escapeHtml(leadBody)}</p>
+        </section>
+        <section class="homeOverviewSync">
+          <span class="eyebrow">Sync</span>
+          <strong>${syncLoggedIn ? escapeHtml(firebaseUser.email || "Google接続済み") : "この端末の同期状態"}</strong>
+          <p>${escapeHtml(syncLoggedIn ? "PCとiPhoneで同じGoogleアカウントなら進捗を共通化できます。" : "GoogleログインするとPCとiPhoneで進捗を共有できます。")}</p>
+          <span class="homeSyncBadge ${syncBadgeClass}">${escapeHtml(syncBadgeText)}</span>
+        </section>
+      </div>
+      <div class="homeOverviewStats">
+        <article class="overviewStat">
+          <span class="overviewStatLabel">仕上げ期限まで</span>
+          <span class="overviewStatValue">${completeDaysLeft >= 0 ? `${completeDaysLeft}日` : "超過"}</span>
+          <span class="overviewStatSub">${escapeHtml(phase.label)}</span>
+        </article>
+        <article class="overviewStat">
+          <span class="overviewStatLabel">今日のノルマ</span>
+          <span class="overviewStatValue">${planCount || dailyTarget}問</span>
+          <span class="overviewStatSub">${planCount > 0 ? `今日プラン ${planCount}問` : `最低 ${dailyTarget}問`}</span>
+        </article>
+        <article class="overviewStat">
+          <span class="overviewStatLabel">セクション進捗</span>
+          <span class="overviewStatValue">${clearedSections}/${totalSections || 0}</span>
+          <span class="overviewStatSub">${totalSections > 0 ? `クリア率 ${Math.round((clearedSections / totalSections) * 100)}%` : "未設定"}</span>
+        </article>
+        <article class="overviewStat">
+          <span class="overviewStatLabel">個別で正解済み</span>
+          <span class="overviewStatValue">${solvedQuestions}/${totalQuestions || 0}</span>
+          <span class="overviewStatSub">${activeTopic && activeSection ? `${activeTopic.name} / ${activeSection.name}` : "問題追加待ち"}</span>
+        </article>
+      </div>
+    `;
   }
 
   function renderDashboard() {
@@ -3878,6 +3961,34 @@
       const googleStatusEl = byId("googleSyncStatusLine");
       googleStatusEl.textContent = googleSyncRuntimeStatus;
       googleStatusEl.classList.toggle("isError", googleSyncRuntimeError);
+    }
+
+    const syncPanel = byId("syncStatusPanel");
+    if (syncPanel) {
+      const pushed = syncConfig.googleLastLocalPushedAt
+        ? formatSyncTimestamp(syncConfig.googleLastLocalPushedAt)
+        : "未同期";
+      const remote = syncConfig.googleLastRemoteUpdatedAt
+        ? formatSyncTimestamp(syncConfig.googleLastRemoteUpdatedAt)
+        : "未同期";
+      syncPanel.innerHTML = `
+        <div class="syncStatusCard">
+          <strong>アカウント</strong>
+          <span>${escapeHtml(firebaseUser && firebaseUser.uid ? (firebaseUser.email || "Google接続済み") : "未ログイン")}</span>
+        </div>
+        <div class="syncStatusCard">
+          <strong>最終クラウド更新</strong>
+          <span>${escapeHtml(remote)}</span>
+        </div>
+        <div class="syncStatusCard">
+          <strong>この端末から送信</strong>
+          <span>${escapeHtml(pushed)}</span>
+        </div>
+        <div class="syncStatusCard">
+          <strong>状態</strong>
+          <span>${escapeHtml(googleSyncRuntimeStatus || (googleSyncBusy ? "同期処理中" : "待機中"))}</span>
+        </div>
+      `;
     }
   }
 
