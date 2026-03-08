@@ -14,7 +14,7 @@
   const SECTION_CLEAR_TARGET = 5;
   const FOCUS_TABS = ["home", "today", "primer", "drill"];
   const FOCUS_TAB_TARGETS = {
-    home: ["homeCard", "dashboardCard"],
+    home: ["dashboardCard", "homeCard"],
     today: ["todayPlanCard"],
     primer: ["primerBookCard"],
     drill: ["drillCard"]
