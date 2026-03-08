@@ -3889,7 +3889,7 @@
     const capacityPerDay = getTimeBasedQuestions();
     const remainingTotal = getRemainingTotalEffort();
     const forecastDays = Math.max(0, Math.ceil(remainingTotal / Math.max(1, capacityPerDay)));
-    const deltaDays = completeDaysLeft - forecastDays;
+    const paceGap = capacityPerDay - needPerDay;
     const totalSections = state.topics.reduce((sum, topic) => sum + getTopicSections(topic).length, 0);
     const clearedSections = state.topics.reduce((sum, topic) => {
       const progress = state.progress[topic.id] || defaultProgress();
@@ -3901,19 +3901,19 @@
     byId("dailyTarget").textContent = `${dailyTarget}問`;
     byId("needPerDayLine").textContent = `${needPerDay}問/日`;
     byId("capacityPerDayLine").textContent = `${capacityPerDay}問/日`;
-    byId("forecastLine").textContent = `${forecastDays}日で完了見込み`;
+    byId("forecastLine").textContent = `残り想定 ${forecastDays}日`;
 
-    let deltaText = "計画どおり";
+    let deltaText = "ぴったり";
     let paceTone = "isGood";
-    if (deltaDays < 0) {
-      deltaText = `${Math.abs(deltaDays)}日ぶん遅れ`;
+    if (paceGap < 0) {
+      deltaText = `${Math.abs(paceGap)}問/日 不足`;
       paceTone = "isBad";
-    } else if (deltaDays === 0) {
-      deltaText = "ちょうど計画線";
+    } else if (paceGap === 0) {
+      deltaText = "ちょうど必要量";
       paceTone = "isWarn";
     } else {
-      deltaText = `${deltaDays}日ぶん先行`;
-      paceTone = deltaDays >= 3 ? "isGood" : "isWarn";
+      deltaText = `${paceGap}問/日 余裕`;
+      paceTone = paceGap >= 5 ? "isGood" : "isWarn";
     }
     byId("paceDeltaLine").textContent = deltaText;
 
@@ -3924,14 +3924,14 @@
     setProgressFillTone("paceGaugeFill", paceTone);
 
     const paceStatus = byId("paceStatusNote");
-    if (deltaDays < 0) {
-      paceStatus.textContent = `今の設定だと仕上げ期限に対して ${Math.abs(deltaDays)}日ぶん遅れています。1日の学習時間を増やすか、今日の問題数を上書きしてください。`;
+    if (paceGap < 0) {
+      paceStatus.textContent = `今の設定ペースは必要量より ${Math.abs(paceGap)}問/日 足りません。1日の学習時間を増やすか、今日の問題数を上書きしてください。`;
       paceStatus.classList.add("isError");
-    } else if (deltaDays === 0) {
-      paceStatus.textContent = `今の設定でほぼ計画どおりです。今日のノルマ ${dailyTarget}問 を崩さなければ締切線に乗ります。`;
+    } else if (paceGap === 0) {
+      paceStatus.textContent = `今の設定で必要量ちょうどです。今日のノルマ ${dailyTarget}問 を崩さなければ締切線に乗ります。`;
       paceStatus.classList.remove("isError");
     } else {
-      paceStatus.textContent = `今の設定なら仕上げ期限に対して ${deltaDays}日ぶん余裕があります。余裕は弱点分野の復習に回せます。`;
+      paceStatus.textContent = `今の設定ペースは必要量より ${paceGap}問/日 余裕があります。ただしこれは問題消化ベースで、予習・復習・模試の時間は別です。`;
       paceStatus.classList.remove("isError");
     }
 
