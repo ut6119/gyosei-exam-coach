@@ -724,6 +724,18 @@ button.ng {
   transition: width 220ms ease;
 }
 
+.progressFill.isGood {
+  background: linear-gradient(90deg, #157048 0%, #1d9660 55%, #54c38e 100%);
+}
+
+.progressFill.isWarn {
+  background: linear-gradient(90deg, #c8831d 0%, #e3a53b 55%, #f0ca6f 100%);
+}
+
+.progressFill.isBad {
+  background: linear-gradient(90deg, #b53e2f 0%, #cf5a4a 55%, #e58b7d 100%);
+}
+
 .compactGauge {
   margin-bottom: 6px;
 }

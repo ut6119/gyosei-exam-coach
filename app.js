@@ -3878,10 +3878,55 @@
     const completeDate = getCompleteDate();
     const phase = phaseByDays(completeDaysLeft);
     const dailyTarget = getDailyTargetCount();
+    const needPerDay = getNeedBasedQuestions();
+    const capacityPerDay = getTimeBasedQuestions();
+    const remainingTotal = getRemainingTotalEffort();
+    const forecastDays = Math.max(0, Math.ceil(remainingTotal / Math.max(1, capacityPerDay)));
+    const deltaDays = completeDaysLeft - forecastDays;
+    const totalSections = state.topics.reduce((sum, topic) => sum + getTopicSections(topic).length, 0);
+    const clearedSections = state.topics.reduce((sum, topic) => {
+      const progress = state.progress[topic.id] || defaultProgress();
+      return sum + Math.min(getTopicSections(topic).length, progress.sectionClears);
+    }, 0);
 
     byId("daysLeft").textContent = completeDaysLeft >= 0 ? `${completeDaysLeft}日` : "期限超過";
     byId("phaseLabel").textContent = phase.label;
     byId("dailyTarget").textContent = `${dailyTarget}問`;
+    byId("needPerDayLine").textContent = `${needPerDay}問/日`;
+    byId("capacityPerDayLine").textContent = `${capacityPerDay}問/日`;
+    byId("forecastLine").textContent = `${forecastDays}日で完了見込み`;
+
+    let deltaText = "計画どおり";
+    let paceTone = "isGood";
+    if (deltaDays < 0) {
+      deltaText = `${Math.abs(deltaDays)}日ぶん遅れ`;
+      paceTone = "isBad";
+    } else if (deltaDays === 0) {
+      deltaText = "ちょうど計画線";
+      paceTone = "isWarn";
+    } else {
+      deltaText = `${deltaDays}日ぶん先行`;
+      paceTone = deltaDays >= 3 ? "isGood" : "isWarn";
+    }
+    byId("paceDeltaLine").textContent = deltaText;
+
+    setGauge("overallProgressGaugeFill", "overallProgressGaugeLabel", clearedSections, totalSections, "未設定");
+    const paceTotal = Math.max(needPerDay, capacityPerDay, 1);
+    const pacePercent = setGauge("paceGaugeFill", "paceGaugeLabel", capacityPerDay, paceTotal, "未設定");
+    setProgressFillTone("overallProgressGaugeFill", totalSections > 0 && clearedSections >= totalSections ? "isGood" : "default");
+    setProgressFillTone("paceGaugeFill", paceTone);
+
+    const paceStatus = byId("paceStatusNote");
+    if (deltaDays < 0) {
+      paceStatus.textContent = `今の設定だと仕上げ期限に対して ${Math.abs(deltaDays)}日ぶん遅れています。1日の学習時間を増やすか、今日の問題数を上書きしてください。`;
+      paceStatus.classList.add("isError");
+    } else if (deltaDays === 0) {
+      paceStatus.textContent = `今の設定でほぼ計画どおりです。今日のノルマ ${dailyTarget}問 を崩さなければ締切線に乗ります。`;
+      paceStatus.classList.remove("isError");
+    } else {
+      paceStatus.textContent = `今の設定なら仕上げ期限に対して ${deltaDays}日ぶん余裕があります。余裕は弱点分野の復習に回せます。`;
+      paceStatus.classList.remove("isError");
+    }
 
     const likely = toISODate(getLikelyExamDate(todayLocal()));
     let note = `本番${COMPLETE_BUFFER_DAYS}日前の ${toISODate(completeDate)} を仕上げ期限として逆算します。`;
@@ -3897,11 +3942,10 @@
       note += " 仕上げ期限を過ぎています。今日の問題数を増やしてください。";
     }
 
-    const byNeed = getNeedBasedQuestions();
-    const byTime = getTimeBasedQuestions();
-
-    if (byNeed > byTime) {
-      note += ` 現在の学習時間設定だと必要量(${byNeed}問/日)に不足するため、時間増加か問題数上書きを推奨。`;
+    if (needPerDay > capacityPerDay) {
+      note += ` 現在の学習時間設定だと必要量(${needPerDay}問/日)に不足するため、時間増加か問題数上書きを推奨。`;
+    } else if (pacePercent >= 100) {
+      note += " 現在の設定ペースは必要量を満たしています。";
     }
 
     byId("examDateNote").textContent = note;
@@ -5939,14 +5983,17 @@
 
   function getNeedBasedQuestions() {
     const daysLeft = Math.max(1, getDaysUntilCompleteDate());
-    let remaining = 0;
+    const remaining = getRemainingTotalEffort();
+    return Math.max(1, Math.ceil(remaining / daysLeft));
+  }
 
+  function getRemainingTotalEffort() {
+    let remaining = 0;
     for (const topic of state.topics) {
       const progress = state.progress[topic.id] || defaultProgress();
       remaining += remainingEffort(topic, progress);
     }
-
-    return Math.max(1, Math.ceil(remaining / daysLeft));
+    return Math.max(0, Math.ceil(remaining));
   }
 
   function getTimeBasedQuestions() {
@@ -6061,6 +6108,14 @@
     fill.style.width = `${percent}%`;
     label.textContent = `${boundedDone}/${safeTotal} (${percent}%)`;
     return percent;
+  }
+
+  function setProgressFillTone(fillId, tone) {
+    const fill = byId(fillId);
+    fill.classList.remove("isGood", "isWarn", "isBad");
+    if (tone && tone !== "default") {
+      fill.classList.add(tone);
+    }
   }
 
   function escapeHtml(value) {

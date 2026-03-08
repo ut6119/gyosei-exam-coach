@@ -94,6 +94,45 @@
             <span class="kpiValue" id="dailyTarget">-</span>
           </div>
         </div>
+        <div class="summaryBox">
+          <div class="syncStatusPanel">
+            <div class="syncStatusCard">
+              <strong>必要ペース</strong>
+              <span id="needPerDayLine">-</span>
+            </div>
+            <div class="syncStatusCard">
+              <strong>今の設定ペース</strong>
+              <span id="capacityPerDayLine">-</span>
+            </div>
+            <div class="syncStatusCard">
+              <strong>完了見込み</strong>
+              <span id="forecastLine">-</span>
+            </div>
+            <div class="syncStatusCard">
+              <strong>差分</strong>
+              <span id="paceDeltaLine">-</span>
+            </div>
+          </div>
+          <div class="progressWrap">
+            <div class="progressMeta">
+              <span>全体進捗</span>
+              <span id="overallProgressGaugeLabel">0/0 (0%)</span>
+            </div>
+            <div class="progressTrack">
+              <div id="overallProgressGaugeFill" class="progressFill"></div>
+            </div>
+          </div>
+          <div class="progressWrap">
+            <div class="progressMeta">
+              <span>締切ペース</span>
+              <span id="paceGaugeLabel">0/0 (0%)</span>
+            </div>
+            <div class="progressTrack">
+              <div id="paceGaugeFill" class="progressFill"></div>
+            </div>
+          </div>
+          <p id="paceStatusNote" class="note">-</p>
+        </div>
         <p class="note" id="currentDateTime">現在日時: -</p>
         <p class="note" id="examDateNote"></p>
       </section>
