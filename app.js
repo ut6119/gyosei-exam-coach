@@ -5980,16 +5980,16 @@
       return Math.round(override);
     }
 
-    const needBased = getNeedBasedQuestions();
-    const timeBased = getTimeBasedQuestions();
-
-    return Math.max(1, Math.min(Math.max(needBased, Math.ceil(timeBased * 0.6)), timeBased * 2));
+    return getNeedBasedQuestions();
   }
 
   function getNeedBasedQuestions() {
     const daysLeft = Math.max(1, getDaysUntilCompleteDate());
-    const remaining = getRemainingTotalEffort();
-    return Math.max(1, Math.ceil(remaining / daysLeft));
+    const remaining = getRemainingUniqueQuestions();
+    if (remaining <= 0) {
+      return 0;
+    }
+    return Math.ceil(remaining / daysLeft);
   }
 
   function getSolvedUniqueQuestions() {
@@ -6007,20 +6007,6 @@
   function getRemainingUniqueQuestions() {
     const totalQuestions = state.topics.reduce((sum, topic) => sum + topic.total, 0);
     return Math.max(0, totalQuestions - getSolvedUniqueQuestions());
-  }
-
-  function getRemainingTotalEffort() {
-    let remaining = 0;
-    for (const topic of state.topics) {
-      const progress = state.progress[topic.id] || defaultProgress();
-      remaining += remainingEffort(topic, progress);
-    }
-    return Math.max(0, Math.ceil(remaining));
-  }
-
-  function getTimeBasedQuestions() {
-    const minutesPerQuestion = 2.5;
-    return Math.max(1, Math.floor(state.settings.dailyMinutes / minutesPerQuestion));
   }
 
   function phaseByDays(daysLeft) {
