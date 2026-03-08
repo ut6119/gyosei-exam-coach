@@ -122,29 +122,6 @@
           <p id="googleAuthLine" class="note">ログイン状態: 未ログイン</p>
           <p id="googleSyncStatusLine" class="note">同期状態: 未同期</p>
         </div>
-
-        <div class="summaryBox">
-          <p class="questionHead">PC・iPhone 同期（進捗共有）</p>
-          <p class="note">GitHub Gist を使う手動同期（予備）。同じ設定を両端末に入れてください。</p>
-          <div class="row stacked">
-            <label for="syncTokenInput">GitHubトークン（gist権限）</label>
-            <input id="syncTokenInput" type="password" autocomplete="off" placeholder="ghp_..." />
-          </div>
-          <div class="row stacked">
-            <label for="syncGistIdInput">同期ルームID（Gist ID）</label>
-            <input id="syncGistIdInput" type="text" placeholder="未作成なら空欄でOK" />
-          </div>
-          <div class="row">
-            <button id="syncCreateBtn" type="button">同期ルーム作成</button>
-            <button id="syncPushBtn" type="button">この端末→クラウド</button>
-            <button id="syncPullBtn" type="button">クラウド→この端末</button>
-          </div>
-          <div class="row">
-            <button id="syncSaveConfigBtn" type="button">同期設定を保存</button>
-            <button id="syncClearTokenBtn" type="button">トークン消去</button>
-          </div>
-          <p id="syncStatusLine" class="note">同期未設定</p>
-        </div>
       </section>
 
       <section class="card" id="problemMenuCard">

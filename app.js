@@ -1949,11 +1949,6 @@
     byId("googleSignOutBtn").addEventListener("click", onGoogleSignOut);
     byId("googleSyncPushBtn").addEventListener("click", onGoogleSyncPush);
     byId("googleSyncPullBtn").addEventListener("click", onGoogleSyncPull);
-    byId("syncSaveConfigBtn").addEventListener("click", onSyncSaveConfig);
-    byId("syncClearTokenBtn").addEventListener("click", onSyncClearToken);
-    byId("syncCreateBtn").addEventListener("click", onSyncCreateRoom);
-    byId("syncPushBtn").addEventListener("click", onSyncPush);
-    byId("syncPullBtn").addEventListener("click", onSyncPull);
     byId("addTopicBtn").addEventListener("click", onAddTopic);
     byId("problemMenuList").addEventListener("click", onProblemMenuListClick);
     byId("generatePlanBtn").addEventListener("click", () => {
@@ -2402,150 +2397,6 @@
     return formatSyncError(error);
   }
 
-  function onSyncSaveConfig() {
-    readSyncInputs();
-    saveSyncConfig();
-    setSyncStatus("同期設定を保存しました。");
-    renderSettings();
-  }
-
-  function onSyncClearToken() {
-    syncConfig.token = "";
-    saveSyncConfig();
-    setSyncStatus("保存済みトークンを削除しました。");
-    renderSettings();
-  }
-
-  async function onSyncCreateRoom() {
-    if (syncBusy) {
-      return;
-    }
-    readSyncInputs();
-    if (!syncConfig.token) {
-      alert("GitHubトークン（gist権限）を入力してください。");
-      return;
-    }
-
-    setSyncBusy(true);
-    setSyncStatus("同期ルームを作成中です...");
-    try {
-      const payload = buildSyncPayload();
-      const body = {
-        description: "Gyosei Exam Coach Sync",
-        public: false,
-        files: {
-          [SYNC_GIST_FILENAME]: {
-            content: JSON.stringify(payload)
-          }
-        }
-      };
-      const result = await callGitHubApi("/gists", {
-        method: "POST",
-        body
-      });
-      syncConfig.gistId = String(result.id || "").trim();
-      syncConfig.lastRemoteUpdatedAt = String(result.updated_at || new Date().toISOString());
-      syncConfig.lastLocalPushedAt = new Date().toISOString();
-      saveSyncConfig();
-      setSyncStatus(`同期ルームを作成しました。ID: ${syncConfig.gistId}`);
-      renderSettings();
-    } catch (error) {
-      setSyncStatus(`同期ルーム作成に失敗: ${formatSyncError(error)}`, true);
-    } finally {
-      setSyncBusy(false);
-    }
-  }
-
-  async function onSyncPush() {
-    if (syncBusy) {
-      return;
-    }
-    readSyncInputs();
-    if (!syncConfig.token) {
-      alert("GitHubトークン（gist権限）を入力してください。");
-      return;
-    }
-    if (!syncConfig.gistId) {
-      alert("同期ルームIDが未設定です。先に同期ルーム作成を押してください。");
-      return;
-    }
-
-    setSyncBusy(true);
-    setSyncStatus("クラウドへアップロード中です...");
-    try {
-      const payload = buildSyncPayload();
-      const body = {
-        files: {
-          [SYNC_GIST_FILENAME]: {
-            content: JSON.stringify(payload)
-          }
-        }
-      };
-      const result = await callGitHubApi(`/gists/${encodeURIComponent(syncConfig.gistId)}`, {
-        method: "PATCH",
-        body
-      });
-      syncConfig.lastRemoteUpdatedAt = String(result.updated_at || new Date().toISOString());
-      syncConfig.lastLocalPushedAt = new Date().toISOString();
-      saveSyncConfig();
-      setSyncStatus("クラウドへ同期しました。");
-      renderSettings();
-    } catch (error) {
-      setSyncStatus(`アップロードに失敗: ${formatSyncError(error)}`, true);
-    } finally {
-      setSyncBusy(false);
-    }
-  }
-
-  async function onSyncPull() {
-    if (syncBusy) {
-      return;
-    }
-    readSyncInputs();
-    if (!syncConfig.token) {
-      alert("GitHubトークン（gist権限）を入力してください。");
-      return;
-    }
-    if (!syncConfig.gistId) {
-      alert("同期ルームIDを入力してください。");
-      return;
-    }
-    if (!confirm("クラウドの進捗でこの端末を上書きします。実行しますか？")) {
-      return;
-    }
-
-    setSyncBusy(true);
-    setSyncStatus("クラウドから読み込み中です...");
-    try {
-      const gist = await callGitHubApi(`/gists/${encodeURIComponent(syncConfig.gistId)}`, {
-        method: "GET"
-      });
-      const content = await readSyncGistContent(gist);
-      const parsed = JSON.parse(content);
-      const remoteState = parsed && typeof parsed === "object" ? parsed.state : null;
-      if (!remoteState || typeof remoteState !== "object") {
-        throw new Error("同期データの形式が不正です。");
-      }
-
-      state = remoteState;
-      syncStateShape();
-      saveState();
-      syncConfig.lastRemoteUpdatedAt = String(gist.updated_at || parsed.savedAt || new Date().toISOString());
-      saveSyncConfig();
-      setSyncStatus("クラウドから同期しました。");
-      renderAll();
-    } catch (error) {
-      setSyncStatus(`ダウンロードに失敗: ${formatSyncError(error)}`, true);
-    } finally {
-      setSyncBusy(false);
-    }
-  }
-
-  function readSyncInputs() {
-    syncConfig.token = byId("syncTokenInput").value.trim();
-    syncConfig.gistId = byId("syncGistIdInput").value.trim();
-  }
-
   function buildSyncPayload() {
     return {
       schemaVersion: SYNC_SCHEMA_VERSION,
@@ -2555,89 +2406,11 @@
     };
   }
 
-  async function callGitHubApi(path, options = {}) {
-    const method = String(options.method || "GET").toUpperCase();
-    const headers = {
-      Accept: "application/vnd.github+json",
-      "X-GitHub-Api-Version": "2022-11-28"
-    };
-
-    if (syncConfig.token) {
-      headers.Authorization = `Bearer ${syncConfig.token}`;
-    }
-
-    let body;
-    if (options.body !== undefined) {
-      headers["Content-Type"] = "application/json";
-      body = JSON.stringify(options.body);
-    }
-
-    const response = await fetch(`https://api.github.com${path}`, {
-      method,
-      headers,
-      body
-    });
-
-    const text = await response.text();
-    let parsed;
-    try {
-      parsed = text ? JSON.parse(text) : {};
-    } catch (_error) {
-      parsed = { message: text || "unknown error" };
-    }
-
-    if (!response.ok) {
-      const detail = parsed && parsed.message ? parsed.message : `${response.status} ${response.statusText}`;
-      throw new Error(detail);
-    }
-    return parsed;
-  }
-
-  async function readSyncGistContent(gist) {
-    const files = gist && gist.files && typeof gist.files === "object" ? gist.files : {};
-    const preferred = files[SYNC_GIST_FILENAME];
-    const fallback = Object.values(files)[0];
-    const file = preferred || fallback;
-    if (!file) {
-      throw new Error("同期ファイルが見つかりません。");
-    }
-
-    if (file.truncated && file.raw_url) {
-      const response = await fetch(String(file.raw_url), {
-        headers: syncConfig.token ? { Authorization: `Bearer ${syncConfig.token}` } : {}
-      });
-      if (!response.ok) {
-        throw new Error(`同期ファイル取得失敗: ${response.status}`);
-      }
-      return await response.text();
-    }
-
-    return String(file.content || "");
-  }
-
-  function setSyncBusy(value) {
-    syncBusy = Boolean(value);
-    const disabled = syncBusy;
-    byId("syncCreateBtn").disabled = disabled;
-    byId("syncPushBtn").disabled = disabled;
-    byId("syncPullBtn").disabled = disabled;
-    byId("syncSaveConfigBtn").disabled = disabled;
-    byId("syncClearTokenBtn").disabled = disabled;
-  }
-
   function formatSyncError(error) {
     if (error instanceof Error) {
       return error.message;
     }
     return String(error || "不明なエラー");
-  }
-
-  function setSyncStatus(message, isError = false) {
-    syncRuntimeStatus = String(message || "");
-    syncRuntimeError = Boolean(isError);
-    const statusEl = byId("syncStatusLine");
-    statusEl.textContent = syncRuntimeStatus;
-    statusEl.classList.toggle("isError", syncRuntimeError);
   }
 
   function formatSyncTimestamp(value) {
@@ -4105,25 +3878,6 @@
       const googleStatusEl = byId("googleSyncStatusLine");
       googleStatusEl.textContent = googleSyncRuntimeStatus;
       googleStatusEl.classList.toggle("isError", googleSyncRuntimeError);
-    }
-
-    byId("syncTokenInput").value = syncConfig.token;
-    byId("syncGistIdInput").value = syncConfig.gistId;
-    setSyncBusy(syncBusy);
-
-    if (!syncRuntimeStatus) {
-      const remote = syncConfig.lastRemoteUpdatedAt
-        ? formatSyncTimestamp(syncConfig.lastRemoteUpdatedAt)
-        : "未同期";
-      const local = syncConfig.lastLocalPushedAt
-        ? formatSyncTimestamp(syncConfig.lastLocalPushedAt)
-        : "未同期";
-      const room = syncConfig.gistId || "未作成";
-      setSyncStatus(`同期ルーム: ${room} / 最終アップロード: ${local} / 最終クラウド更新: ${remote}`);
-    } else {
-      const statusEl = byId("syncStatusLine");
-      statusEl.textContent = syncRuntimeStatus;
-      statusEl.classList.toggle("isError", syncRuntimeError);
     }
   }
 
