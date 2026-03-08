@@ -111,6 +111,15 @@
         <div class="summaryBox">
           <p class="questionHead">Googleログイン同期（推奨）</p>
           <p class="note">PCとiPhoneで同じGoogleアカウントにログインすると、進捗をクラウド同期できます。</p>
+          <div class="row stacked">
+            <label for="firebaseApiKeyOverrideInput">Firebase APIキー上書き（この端末だけ）</label>
+            <input id="firebaseApiKeyOverrideInput" type="password" autocomplete="off" placeholder="AIza..." />
+          </div>
+          <div class="row">
+            <button id="saveFirebaseApiKeyBtn" type="button">この端末に保存</button>
+            <button id="clearFirebaseApiKeyBtn" type="button">上書きを消す</button>
+          </div>
+          <p class="note">Firebaseの `init.json` が古いキーのままの時だけ使います。保存後に自動で再読み込みします。</p>
           <div class="row">
             <button id="googleSignInBtn" type="button">Googleでログイン</button>
             <button id="googleSignOutBtn" type="button">ログアウト</button>
