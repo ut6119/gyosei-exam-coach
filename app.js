@@ -2167,15 +2167,18 @@
           setGoogleSyncStatus("同期状態: 未ログイン");
         }
         renderSettings();
+        renderHome();
       });
 
       firebaseAuth.getRedirectResult()
         .then(() => {
           renderSettings();
+          renderHome();
         })
         .catch((error) => {
           setGoogleSyncStatus(`同期状態: ログイン失敗 (${formatGoogleAuthError(error)})`, true);
           renderSettings();
+          renderHome();
         });
     } catch (error) {
       firebaseReady = false;
@@ -2248,6 +2251,7 @@
     } finally {
       setGoogleSyncBusy(false);
       renderSettings();
+      renderHome();
     }
   }
 
@@ -2267,6 +2271,7 @@
     } finally {
       setGoogleSyncBusy(false);
       renderSettings();
+      renderHome();
     }
   }
 
@@ -2302,6 +2307,7 @@
     } finally {
       setGoogleSyncBusy(false);
       renderSettings();
+      renderHome();
     }
   }
 
@@ -2346,6 +2352,7 @@
     } finally {
       setGoogleSyncBusy(false);
       renderSettings();
+      renderHome();
     }
   }
 
