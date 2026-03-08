@@ -5,6 +5,7 @@
   const SYNC_CONFIG_KEY = "gyoseiExamCoach.sync.v1";
   const SYNC_GIST_FILENAME = "gyosei-sync.json";
   const SYNC_SCHEMA_VERSION = 1;
+  const NETLIFY_FIREBASE_CONFIG_URL = "/.netlify/functions/firebase-config";
   const FIREBASE_INIT_CONFIG_URL = "https://receipt-app-35ec3.web.app/__/firebase/init.json";
   const FIREBASE_SYNC_COLLECTION = "gyoseiExamCoach";
   const FIREBASE_SYNC_DOC_ID = "sync";
@@ -2194,11 +2195,12 @@
   }
 
   async function loadFirebaseWebConfig() {
-    const response = await fetch(FIREBASE_INIT_CONFIG_URL, { cache: "no-store" });
-    if (!response.ok) {
-      throw new Error(`Firebase設定取得失敗: ${response.status}`);
+    let config;
+    try {
+      config = await fetchFirebaseConfigFromNetlify();
+    } catch (_error) {
+      config = await fetchFirebaseConfigFromHosting();
     }
-    const config = await response.json();
     if (syncConfig.firebaseApiKeyOverride) {
       config.apiKey = syncConfig.firebaseApiKeyOverride;
     }
@@ -2212,6 +2214,22 @@
       throw new Error("Firebase設定が不正です。");
     }
     return config;
+  }
+
+  async function fetchFirebaseConfigFromNetlify() {
+    const response = await fetch(NETLIFY_FIREBASE_CONFIG_URL, { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error(`Netlify設定取得失敗: ${response.status}`);
+    }
+    return await response.json();
+  }
+
+  async function fetchFirebaseConfigFromHosting() {
+    const response = await fetch(FIREBASE_INIT_CONFIG_URL, { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error(`Firebase設定取得失敗: ${response.status}`);
+    }
+    return await response.json();
   }
 
   function onSaveFirebaseApiKeyOverride() {
