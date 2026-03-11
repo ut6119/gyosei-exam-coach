@@ -1961,6 +1961,7 @@
     byId("primerPrevSectionBtn").addEventListener("click", onPrimerPrevSection);
     byId("primerNextSectionBtn").addEventListener("click", onPrimerNextSection);
     byId("startDrillBtn").addEventListener("click", onStartDrill);
+    byId("drillStartFromTabBtn").addEventListener("click", onStartDrill);
     byId("drillPrevBtn").addEventListener("click", onDrillPrevQuestion);
     byId("drillNavNextBtn").addEventListener("click", onDrillNavNextQuestion);
     byId("drillChoicesWrap").addEventListener("click", onDrillChoiceClick);
@@ -4469,6 +4470,7 @@
     const resultInline = byId("drillResultInline");
     const resultBadge = byId("drillResultBadge");
     const explanationAccordion = byId("drillExplanationAccordion");
+    const drillStartFromTabBtn = byId("drillStartFromTabBtn");
     const doneCount = state.drill.queue.length > 0
       ? Math.min(state.drill.pointer, state.drill.queue.length)
       : 0;
@@ -4477,8 +4479,10 @@
 
     if (state.drill.active) {
       setGauge("drillGaugeFill", "drillGaugeLabel", doneCount, state.drill.queue.length, "0%");
+      drillStartFromTabBtn.textContent = "ドリル再開始";
     } else {
       setGauge("drillGaugeFill", "drillGaugeLabel", 0, todayPlannedCount, "未開始");
+      drillStartFromTabBtn.textContent = "この画面からドリル開始";
     }
 
     if (!state.drill.active) {
