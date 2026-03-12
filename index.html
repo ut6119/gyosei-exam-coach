@@ -13,7 +13,7 @@
       <div class="heroMeta">
         <span class="heroChip">iPhone最適化</span>
         <span class="heroChip">Google同期</span>
-        <span class="heroChip">3択反復</span>
+        <span class="heroChip">本番形式反復</span>
         <span class="heroChip">本番7日前に完成</span>
       </div>
     </header>
@@ -351,6 +351,13 @@
         <div class="row stacked">
           <label for="questionPromptInput">問題文</label>
           <textarea id="questionPromptInput" rows="2"></textarea>
+        </div>
+        <div class="row">
+          <label for="questionDrillFormatSelect">ドリル出題形式</label>
+          <select id="questionDrillFormatSelect">
+            <option value="five">5択（本番準拠）</option>
+            <option value="written">記述（本番準拠）</option>
+          </select>
         </div>
         <div class="row stacked">
           <label for="questionChoice1Input">選択肢1</label>

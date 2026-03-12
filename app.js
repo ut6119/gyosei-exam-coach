@@ -12,20 +12,6 @@
   const RESEARCH_UPDATED_AT = "2026-03-07";
   const COMPLETE_BUFFER_DAYS = 7;
   const SECTION_CLEAR_TARGET = 5;
-  const DRILL_SECTION_FORMAT_RULES = {
-    admin: [
-      { match: "行政手続", format: "five" },
-      { match: "行政不服審査", format: "five" },
-      { match: "行政事件訴訟", format: "five" },
-      { match: "国家賠償", format: "five" },
-      { match: "地方自治", format: "five" }
-    ],
-    civil: [{ match: "", format: "five" }],
-    const_basic: [{ match: "", format: "five" }],
-    commercial: [{ match: "", format: "five" }],
-    general: [{ match: "", format: "five" }],
-    describe: [{ match: "", format: "written" }]
-  };
   const FOCUS_TABS = ["home", "today", "primer", "drill"];
   const FOCUS_TAB_TARGETS = {
     home: ["dashboardCard", "homeCard"],
@@ -1312,6 +1298,7 @@
       prompt: "",
       choices: [],
       correctIndex: 0,
+      drillFormat: "",
       answer: "",
       explanation: "",
       pitfall: "",
@@ -1834,6 +1821,10 @@
   function normalizeQuestion(question) {
     const safe = { ...defaultQuestion(), ...(question || {}) };
     safe.prompt = String(safe.prompt || "").trim();
+    safe.drillFormat = String(safe.drillFormat || "").trim();
+    if (safe.drillFormat !== "five" && safe.drillFormat !== "written") {
+      safe.drillFormat = "";
+    }
     safe.answer = String(safe.answer || "").trim();
     safe.explanation = String(safe.explanation || "").trim();
     safe.pitfall = String(safe.pitfall || "").trim();
@@ -3328,13 +3319,14 @@
       return;
     }
 
+    const drillFormat = normalizeDrillFormat(byId("questionDrillFormatSelect").value, topicId);
     const choices = [
       byId("questionChoice1Input").value.trim(),
       byId("questionChoice2Input").value.trim(),
       byId("questionChoice3Input").value.trim()
     ];
-    if (choices.some((choice) => !choice)) {
-      alert("選択肢1〜3をすべて入力してください。");
+    if (drillFormat !== "written" && choices.some((choice) => !choice)) {
+      alert("5択で出題する問題は、選択肢1〜3をすべて入力してください。");
       return;
     }
 
@@ -3345,8 +3337,9 @@
 
     const detail = {
       prompt: byId("questionPromptInput").value.trim(),
-      choices,
+      choices: drillFormat === "written" ? choices.filter(Boolean) : choices,
       correctIndex,
+      drillFormat,
       answer: byId("questionAnswerInput").value.trim(),
       explanation: byId("questionExplanationInput").value.trim(),
       pitfall: byId("questionPitfallInput").value.trim(),
@@ -3362,7 +3355,7 @@
 
     state.questionEditor.topicId = topicId;
     state.questionEditor.questionNo = questionNo;
-    state.questionEditor.message = `${topic.name} Q${questionNo} の3択問題を保存しました。`;
+    state.questionEditor.message = `${topic.name} Q${questionNo} の出題形式（${drillFormat === "written" ? "記述" : "5択"}）を保存しました。`;
 
     saveState();
     renderQuestionEditor();
@@ -4739,8 +4732,10 @@
     byId("questionNumberInput").value = String(state.questionEditor.questionNo);
 
     const detail = getQuestionDetail(state.questionEditor.topicId, state.questionEditor.questionNo, false);
+    const editorFormat = normalizeDrillFormat(detail.drillFormat, state.questionEditor.topicId);
 
     byId("questionPromptInput").value = detail.prompt;
+    byId("questionDrillFormatSelect").value = editorFormat;
     byId("questionChoice1Input").value = detail.choices[0] || "";
     byId("questionChoice2Input").value = detail.choices[1] || "";
     byId("questionChoice3Input").value = detail.choices[2] || "";
@@ -5140,32 +5135,42 @@
     };
   }
 
-  function resolveDrillSectionFormat(topic, section, questionNo) {
-    if (!topic || !section) {
+  function normalizeDrillFormat(rawFormat, topicId) {
+    const text = String(rawFormat || "").trim();
+    if (text === "written") {
+      return "written";
+    }
+    if (text === "five") {
       return "five";
     }
-    const rules = DRILL_SECTION_FORMAT_RULES[topic.id];
-    if (!Array.isArray(rules) || rules.length === 0) {
-      return topic.id === "describe" ? "written" : "five";
+    return topicId === "describe" ? "written" : "five";
+  }
+
+  function inferDrillFormatFromPrompt(promptText, topicId) {
+    if (topicId === "describe") {
+      return "written";
     }
-    const sectionName = String(section.name || "");
-    for (const rule of rules) {
-      const key = String((rule && rule.match) || "");
-      if (!key || sectionName.includes(key)) {
-        return String((rule && rule.format) || (topic.id === "describe" ? "written" : "five"));
-      }
+    const prompt = String(promptText || "").trim();
+    if (/記述式|記述問題|字数/u.test(prompt)) {
+      return "written";
     }
-    const fallback = String((rules[rules.length - 1] && rules[rules.length - 1].format) || "");
-    if (fallback === "written" || fallback === "five") {
-      return fallback;
+    return "five";
+  }
+
+  function resolveDrillQuestionFormat(topic, detail) {
+    if (!topic) {
+      return "five";
     }
-    return topic.id === "describe" ? "written" : "five";
+    if (detail && (detail.drillFormat === "written" || detail.drillFormat === "five")) {
+      return detail.drillFormat;
+    }
+    const inferred = inferDrillFormatFromPrompt(detail && detail.prompt, topic.id);
+    return normalizeDrillFormat(inferred, topic.id);
   }
 
   function getDrillQuestionPacket(topic, questionNo) {
     const detail = getQuestionDetail(topic.id, questionNo, false);
-    const section = getCurrentSection(topic, questionNo);
-    const format = resolveDrillSectionFormat(topic, section, questionNo);
+    const format = resolveDrillQuestionFormat(topic, detail);
     const formatLabel = format === "written" ? "記述式" : "5択";
 
     if (format === "five") {
@@ -5290,6 +5295,7 @@
         prompt: "問題セットが存在しません。",
         choices: ["-", "-", "-"],
         correctIndex: 0,
+        drillFormat: "five",
         answer: "",
         explanation: "",
         pitfall: "",
@@ -5326,15 +5332,29 @@
   function withFallbackQuestionDetail(topic, questionNo, source) {
     const categoryKey = GENERIC_EXPLANATION[topic.category] ? topic.category : "minor";
     const auto = buildAutoChoiceDetail(topic, questionNo);
-    const hasSourceChoices = hasCompleteChoices(source.choices);
+    const sourceChoices = Array.isArray(source.choices)
+      ? source.choices.map((choice) => String(choice || "").trim()).filter(Boolean)
+      : [];
+    const hasSourceChoices = sourceChoices.length > 0;
+    const mergedChoices = hasSourceChoices ? sourceChoices : auto.choices;
     const parsedSourceCorrect = Number(source.correctIndex);
-    const sourceCorrectValid = Number.isInteger(parsedSourceCorrect) && parsedSourceCorrect >= 0 && parsedSourceCorrect <= 2;
+    const sourceCorrectValid = Number.isInteger(parsedSourceCorrect)
+      && parsedSourceCorrect >= 0
+      && parsedSourceCorrect < mergedChoices.length;
     const terms = Array.isArray(source.terms) && source.terms.length > 0 ? source.terms : auto.terms;
+    const inferredFormat = normalizeDrillFormat(
+      source.drillFormat || inferDrillFormatFromPrompt(source.prompt, topic.id),
+      topic.id
+    );
+    const fallbackCorrect = Number.isInteger(Number(auto.correctIndex))
+      ? Math.max(0, Math.min(mergedChoices.length - 1, Number(auto.correctIndex)))
+      : 0;
 
     return normalizeQuestion({
-      prompt: hasSourceChoices ? (source.prompt || auto.prompt) : auto.prompt,
-      choices: hasSourceChoices ? source.choices : auto.choices,
-      correctIndex: hasSourceChoices && sourceCorrectValid ? parsedSourceCorrect : auto.correctIndex,
+      prompt: source.prompt || auto.prompt,
+      choices: mergedChoices,
+      correctIndex: sourceCorrectValid ? parsedSourceCorrect : fallbackCorrect,
+      drillFormat: inferredFormat,
       answer: source.answer || auto.answer || `正解は「${auto.choices[auto.correctIndex]}」。`,
       explanation: source.explanation || auto.explanation || GENERIC_EXPLANATION[categoryKey],
       pitfall: source.pitfall || auto.pitfall || "主語・語尾・期限の取り違いに注意。",
