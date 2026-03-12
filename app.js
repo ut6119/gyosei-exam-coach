@@ -12,6 +12,20 @@
   const RESEARCH_UPDATED_AT = "2026-03-07";
   const COMPLETE_BUFFER_DAYS = 7;
   const SECTION_CLEAR_TARGET = 5;
+  const DRILL_SECTION_FORMAT_RULES = {
+    admin: [
+      { match: "行政手続", format: "five" },
+      { match: "行政不服審査", format: "five" },
+      { match: "行政事件訴訟", format: "five" },
+      { match: "国家賠償", format: "five" },
+      { match: "地方自治", format: "five" }
+    ],
+    civil: [{ match: "", format: "five" }],
+    const_basic: [{ match: "", format: "five" }],
+    commercial: [{ match: "", format: "five" }],
+    general: [{ match: "", format: "five" }],
+    describe: [{ match: "", format: "written" }]
+  };
   const FOCUS_TABS = ["home", "today", "primer", "drill"];
   const FOCUS_TAB_TARGETS = {
     home: ["dashboardCard", "homeCard"],
@@ -1327,6 +1341,7 @@
       showExplanation: false,
       selectedChoice: -1,
       pendingResult: null,
+      writtenAnswer: "",
       singleMode: false,
       singleTopicId: "",
       singleQuestionNo: 1,
@@ -1585,12 +1600,13 @@
     state.drill.selectedChoice = Number.isInteger(state.drill.selectedChoice)
       ? state.drill.selectedChoice
       : -1;
-    if (state.drill.selectedChoice < -1 || state.drill.selectedChoice > 2) {
+    if (state.drill.selectedChoice < -1 || state.drill.selectedChoice > 4) {
       state.drill.selectedChoice = -1;
     }
     if (typeof state.drill.pendingResult !== "boolean") {
       state.drill.pendingResult = null;
     }
+    state.drill.writtenAnswer = String(state.drill.writtenAnswer || "");
     state.drill.singleMode = Boolean(state.drill.singleMode);
     state.drill.singleTopicId = String(state.drill.singleTopicId || "");
     state.drill.singleQuestionNo = Math.max(1, Math.round(Number(state.drill.singleQuestionNo) || 1));
@@ -1965,6 +1981,7 @@
     byId("drillPrevBtn").addEventListener("click", onDrillPrevQuestion);
     byId("drillNavNextBtn").addEventListener("click", onDrillNavNextQuestion);
     byId("drillChoicesWrap").addEventListener("click", onDrillChoiceClick);
+    byId("drillWrittenSubmitBtn").addEventListener("click", onDrillWrittenSubmit);
     byId("applyReviewResultBtn").addEventListener("click", onApplyReviewResult);
     byId("skipBtn").addEventListener("click", onSkipDrillQuestion);
     byId("editCurrentQuestionBtn").addEventListener("click", onEditCurrentQuestion);
@@ -2795,10 +2812,11 @@
       correctCount: 0,
       wrongCount: 0,
       startedAt: today,
-      message: "ドリル開始。学習3択を選んで解説を確認しながら進めます。",
+      message: "ドリル開始。本番形式（5択/記述）で解き、解説を確認しながら進めます。",
       showExplanation: false,
       selectedChoice: -1,
       pendingResult: null,
+      writtenAnswer: "",
       singleMode: false,
       singleTopicId: "",
       singleQuestionNo: 1,
@@ -2824,6 +2842,7 @@
     state.drill.showExplanation = false;
     state.drill.selectedChoice = -1;
     state.drill.pendingResult = null;
+    state.drill.writtenAnswer = "";
     state.drill.message = "前の問題へ移動しました。";
     saveState();
     renderDrill();
@@ -2859,17 +2878,58 @@
       return;
     }
 
-    const detail = getQuestionDetail(current.topic.id, current.questionNo, false);
+    const packet = getDrillQuestionPacket(current.topic, current.questionNo);
+    if (packet.format === "written") {
+      state.drill.message = "この問題は記述式です。入力欄に回答して『回答を判定』を押してください。";
+      saveState();
+      renderDrill();
+      return;
+    }
+    const detail = packet.detail;
     const picked = Number(button.dataset.choiceIndex);
-    if (!Number.isInteger(picked) || picked < 0 || picked > 2) {
+    if (!Number.isInteger(picked) || picked < 0 || picked >= detail.choices.length) {
       return;
     }
 
     state.drill.selectedChoice = picked;
+    state.drill.writtenAnswer = "";
     state.drill.pendingResult = picked === detail.correctIndex;
     state.drill.showExplanation = true;
     state.drill.message = "解説を確認してから『次の問題へ』を押してください。";
 
+    saveState();
+    renderDrill();
+  }
+
+  function onDrillWrittenSubmit() {
+    if (!state.drill.active) {
+      return;
+    }
+    const current = getCurrentDrillQuestionContext();
+    if (!current) {
+      return;
+    }
+    const packet = getDrillQuestionPacket(current.topic, current.questionNo);
+    if (packet.format !== "written") {
+      state.drill.message = "この問題は選択式です。選択肢を選んでください。";
+      saveState();
+      renderDrill();
+      return;
+    }
+
+    const input = String(byId("drillWrittenInput").value || "").trim();
+    if (input.length < 2) {
+      state.drill.message = "記述回答を入力してください。";
+      saveState();
+      renderDrill();
+      return;
+    }
+
+    state.drill.writtenAnswer = input;
+    state.drill.selectedChoice = -1;
+    state.drill.pendingResult = judgeWrittenDrillAnswer(packet.detail, input);
+    state.drill.showExplanation = true;
+    state.drill.message = "解説を確認してから『次の問題へ』を押してください。";
     saveState();
     renderDrill();
   }
@@ -2880,7 +2940,15 @@
     }
 
     if (!state.drill.showExplanation || typeof state.drill.pendingResult !== "boolean") {
-      state.drill.message = "先に3つの選択肢から1つ選んでください。";
+      const current = getCurrentDrillQuestionContext();
+      if (current) {
+        const packet = getDrillQuestionPacket(current.topic, current.questionNo);
+        state.drill.message = packet.format === "written"
+          ? "先に記述回答を入力して『回答を判定』を押してください。"
+          : "先に選択肢から1つ選んでください。";
+      } else {
+        state.drill.message = "先に回答してください。";
+      }
       saveState();
       renderDrill();
       return;
@@ -2897,6 +2965,7 @@
     state.drill.showExplanation = false;
     state.drill.selectedChoice = -1;
     state.drill.pendingResult = null;
+    state.drill.writtenAnswer = "";
     state.drill.pointer += 1;
     state.drill.message = "スキップしました。";
 
@@ -3096,7 +3165,10 @@
     }
 
     if (!state.drill.showExplanation) {
-      state.drill.message = "先に学習3択から1つ選んでください。";
+      const packet = getDrillQuestionPacket(current.topic, current.questionNo);
+      state.drill.message = packet.format === "written"
+        ? "先に記述回答を入力して『回答を判定』を押してください。"
+        : "先に選択肢から1つ選んでください。";
       saveState();
       renderDrill();
       return;
@@ -3139,6 +3211,7 @@
       state.drill.showExplanation = false;
       state.drill.selectedChoice = -1;
       state.drill.pendingResult = null;
+      state.drill.writtenAnswer = "";
       state.drill.pointer += 1;
 
       finalizeDrillIfDone();
@@ -3196,6 +3269,7 @@
     state.drill.showExplanation = false;
     state.drill.selectedChoice = -1;
     state.drill.pendingResult = null;
+    state.drill.writtenAnswer = "";
     state.drill.pointer += 1;
 
     finalizeDrillIfDone();
@@ -3216,6 +3290,7 @@
     state.drill.showExplanation = false;
     state.drill.selectedChoice = -1;
     state.drill.pendingResult = null;
+    state.drill.writtenAnswer = "";
     if (state.drill.singleMode) {
       const topic = state.topics.find((item) => item.id === state.drill.singleTopicId);
       const label = topic
@@ -4464,6 +4539,9 @@
     const active = byId("drillActive");
     const questionPanel = byId("drillQuestionPanel");
     const choicesWrap = byId("drillChoicesWrap");
+    const writtenWrap = byId("drillWrittenWrap");
+    const writtenInput = byId("drillWrittenInput");
+    const writtenSubmitBtn = byId("drillWrittenSubmitBtn");
     const nextBtn = byId("applyReviewResultBtn");
     const skipBtn = byId("skipBtn");
     const editBtn = byId("editCurrentQuestionBtn");
@@ -4500,6 +4578,12 @@
       byId("drillQuestion").textContent = "";
       byId("drillPrompt").textContent = "";
       choicesWrap.innerHTML = "";
+      choicesWrap.classList.remove("hidden");
+      writtenWrap.classList.add("hidden");
+      writtenInput.value = "";
+      writtenInput.disabled = false;
+      writtenSubmitBtn.classList.remove("hidden");
+      writtenSubmitBtn.disabled = false;
       resultInline.classList.add("hidden");
       resultBadge.textContent = "";
       resultBadge.classList.remove("ok", "ng");
@@ -4522,7 +4606,10 @@
       return;
     }
 
-    const detail = getQuestionDetail(current.topic.id, current.questionNo, false);
+    const packet = getDrillQuestionPacket(current.topic, current.questionNo);
+    const format = packet.format;
+    const formatLabel = packet.formatLabel;
+    const detail = packet.detail;
 
     idle.classList.add("hidden");
     active.classList.remove("hidden");
@@ -4535,39 +4622,56 @@
     const section = getCurrentSection(current.topic, current.questionNo);
     if (state.drill.singleMode) {
       byId("drillProgress").textContent = `進捗: ${Math.min(state.drill.pointer + 1, state.drill.queue.length)}/${state.drill.queue.length}（単問）`;
-      byId("drillQuestion").textContent = `出題: ${current.topic.name} / ${section.name} / Q${current.questionNo}`;
+      byId("drillQuestion").textContent = `出題: ${current.topic.name} / ${section.name} / Q${current.questionNo} [${formatLabel}]`;
       byId("drillRuleTop").textContent = "ルール: 単問モード。この1問だけ解いて終了します。";
     } else {
       byId("drillProgress").textContent = `進捗: ${state.drill.pointer + 1} / ${state.drill.queue.length} 問`;
-      byId("drillQuestion").textContent = `出題: ${current.topic.name} / ${section.name} / Q${current.questionNo} (${section.start}-${section.end})`;
+      byId("drillQuestion").textContent = `出題: ${current.topic.name} / ${section.name} / Q${current.questionNo} (${section.start}-${section.end}) [${formatLabel}]`;
     }
 
-    byId("drillPrompt").textContent = detail.prompt;
+    byId("drillPrompt").textContent = buildDrillPromptText(detail.prompt, formatLabel);
     const showResult = state.drill.showExplanation && typeof state.drill.pendingResult === "boolean";
+    const isWritten = format === "written";
 
-    choicesWrap.innerHTML = detail.choices
-      .map((choice, index) => {
-        const label = `${index + 1}. ${choice}`;
-        const disabled = showResult ? "disabled" : "";
-        let mark = "";
-        let markClass = "";
-        if (showResult) {
-          if (index === detail.correctIndex) {
-            mark = "○";
-            markClass = "ok";
-          } else if (index === state.drill.selectedChoice && state.drill.selectedChoice !== detail.correctIndex) {
-            mark = "×";
-            markClass = "ng";
+    if (isWritten) {
+      choicesWrap.innerHTML = "";
+      choicesWrap.classList.add("hidden");
+      writtenWrap.classList.remove("hidden");
+      writtenInput.disabled = showResult;
+      writtenInput.value = state.drill.writtenAnswer || "";
+      writtenSubmitBtn.classList.toggle("hidden", showResult);
+      writtenSubmitBtn.disabled = showResult;
+    } else {
+      writtenWrap.classList.add("hidden");
+      writtenInput.value = "";
+      writtenInput.disabled = false;
+      writtenSubmitBtn.classList.remove("hidden");
+      writtenSubmitBtn.disabled = false;
+      choicesWrap.classList.remove("hidden");
+      choicesWrap.innerHTML = detail.choices
+        .map((choice, index) => {
+          const label = `${index + 1}. ${choice}`;
+          const disabled = showResult ? "disabled" : "";
+          let mark = "";
+          let markClass = "";
+          if (showResult) {
+            if (index === detail.correctIndex) {
+              mark = "○";
+              markClass = "ok";
+            } else if (index === state.drill.selectedChoice && state.drill.selectedChoice !== detail.correctIndex) {
+              mark = "×";
+              markClass = "ng";
+            }
           }
-        }
-        return `
-          <button type="button" class="choiceBtn" data-choice-index="${index}" ${disabled}>
-            <span class="choiceText">${escapeHtml(label)}</span>
-            <span class="choiceMark ${markClass}">${mark}</span>
-          </button>
-        `;
-      })
-      .join("");
+          return `
+            <button type="button" class="choiceBtn" data-choice-index="${index}" ${disabled}>
+              <span class="choiceText">${escapeHtml(label)}</span>
+              <span class="choiceMark ${markClass}">${mark}</span>
+            </button>
+          `;
+        })
+        .join("");
+    }
 
     if (showResult) {
       const isCorrect = state.drill.pendingResult === true;
@@ -4581,9 +4685,14 @@
       skipBtn.classList.add("hidden");
       editBtn.classList.add("hidden");
 
-      const picked = detail.choices[state.drill.selectedChoice] || "未選択";
-      const correct = detail.choices[detail.correctIndex] || "";
-      byId("drillChoiceLine").textContent = `あなたの回答: ${picked} / 正解: ${correct}`;
+      if (isWritten) {
+        const canonical = String(detail.answer || detail.choices[detail.correctIndex] || "").trim();
+        byId("drillChoiceLine").textContent = `あなたの回答: ${state.drill.writtenAnswer || "未入力"} / 模範要点: ${canonical}`;
+      } else {
+        const picked = detail.choices[state.drill.selectedChoice] || "未選択";
+        const correct = detail.choices[detail.correctIndex] || "";
+        byId("drillChoiceLine").textContent = `あなたの回答: ${picked} / 正解: ${correct}`;
+      }
       byId("drillEasyLine").textContent = buildFriendlyDrillNote(current.topic, detail);
       byId("drillExplanationLine").textContent = `解説: ${enhanceExplanationLine(detail.explanation, detail)}`;
       byId("drillPitfallLine").textContent = `間違えやすい点: ${enhancePitfallLine(detail.pitfall, detail)}`;
@@ -4606,7 +4715,9 @@
     byId("drillExplanationLine").textContent = "";
     byId("drillPitfallLine").textContent = "";
     byId("drillTermsLine").textContent = "";
-    byId("drillMessage").textContent = state.drill.message || "学習3択から1つ選んでください。";
+    byId("drillMessage").textContent = state.drill.message || (isWritten
+      ? "記述欄に回答し『回答を判定』を押してください。"
+      : `${formatLabel}から1つ選んでください。`);
   }
 
   function renderQuestionEditor() {
@@ -5027,6 +5138,146 @@
       topic,
       questionNo
     };
+  }
+
+  function resolveDrillSectionFormat(topic, section, questionNo) {
+    if (!topic || !section) {
+      return "three";
+    }
+    const rules = DRILL_SECTION_FORMAT_RULES[topic.id];
+    if (!Array.isArray(rules) || rules.length === 0) {
+      return "three";
+    }
+    const sectionName = String(section.name || "");
+    for (const rule of rules) {
+      const key = String((rule && rule.match) || "");
+      if (!key || sectionName.includes(key)) {
+        return String((rule && rule.format) || "three");
+      }
+    }
+    const fallback = String((rules[rules.length - 1] && rules[rules.length - 1].format) || "three");
+    return fallback || "three";
+  }
+
+  function getDrillQuestionPacket(topic, questionNo) {
+    const detail = getQuestionDetail(topic.id, questionNo, false);
+    const section = getCurrentSection(topic, questionNo);
+    const format = resolveDrillSectionFormat(topic, section, questionNo);
+    const formatLabel = format === "written" ? "記述式" : format === "five" ? "5択" : "3択";
+
+    if (format === "five") {
+      return {
+        format,
+        formatLabel,
+        detail: buildFiveChoiceDetail(topic, questionNo, detail)
+      };
+    }
+
+    return {
+      format,
+      formatLabel,
+      detail
+    };
+  }
+
+  function buildFiveChoiceDetail(topic, questionNo, detail) {
+    const safe = normalizeQuestion(detail);
+    if (!Array.isArray(safe.choices) || safe.choices.length === 0) {
+      return safe;
+    }
+    const parsedCorrect = Math.round(Number(safe.correctIndex));
+    const safeCorrectIndex = Number.isInteger(parsedCorrect) && parsedCorrect >= 0 && parsedCorrect < safe.choices.length
+      ? parsedCorrect
+      : 0;
+    const correctText = String(safe.choices[safeCorrectIndex] || "").trim();
+    if (!correctText) {
+      return safe;
+    }
+
+    const bank = resolveAutoChoiceBank(topic.id, questionNo);
+    const pool = buildTopicDistractorPool(bank, correctText);
+    const distractors = pickTopicDistractors(pool, correctText, 4, `${topic.id}:${questionNo}:five`);
+    const fallbackPool = safe.choices
+      .filter((choice, index) => index !== safeCorrectIndex)
+      .map((choice) => String(choice || "").trim())
+      .filter(Boolean);
+    for (const fallback of fallbackPool) {
+      if (distractors.length >= 4) {
+        break;
+      }
+      if (!distractors.some((item) => normalizeKeyText(item) === normalizeKeyText(fallback))) {
+        distractors.push(fallback);
+      }
+    }
+    while (distractors.length < 4) {
+      const n = distractors.length + 1;
+      const filler = `${topic.name}の一般論${n}`;
+      if (!distractors.some((item) => normalizeKeyText(item) === normalizeKeyText(filler))) {
+        distractors.push(filler);
+      } else {
+        break;
+      }
+    }
+
+    const baseChoices = [correctText, ...distractors.slice(0, 4)];
+    const order = buildDeterministicOrder(baseChoices.length, `${topic.id}:${questionNo}:five-order`);
+    const shuffledChoices = order.map((index) => baseChoices[index]);
+    const nextCorrectIndex = Math.max(0, order.indexOf(0));
+
+    return {
+      ...safe,
+      choices: shuffledChoices,
+      correctIndex: nextCorrectIndex
+    };
+  }
+
+  function judgeWrittenDrillAnswer(detail, inputText) {
+    const rawInput = String(inputText || "").trim();
+    if (!rawInput) {
+      return false;
+    }
+    const inputKey = normalizeKeyText(rawInput);
+    if (!inputKey) {
+      return false;
+    }
+
+    const answerCandidates = [
+      String(detail.answer || "").trim(),
+      String(detail.choices[detail.correctIndex] || "").trim(),
+      String(detail.explanation || "").trim()
+    ].filter(Boolean);
+
+    const answerKeywords = new Set();
+    for (const source of answerCandidates) {
+      for (const token of buildWrittenKeywords(source)) {
+        answerKeywords.add(token);
+      }
+    }
+    if (Array.isArray(detail.terms)) {
+      for (const term of detail.terms) {
+        const token = normalizeKeyText(term);
+        if (token && token.length >= 2) {
+          answerKeywords.add(token);
+        }
+      }
+    }
+
+    const keywords = Array.from(answerKeywords).filter((token) => token.length >= 2);
+    if (keywords.length === 0) {
+      return false;
+    }
+
+    const matched = keywords.filter((token) => inputKey.includes(token));
+    const target = Math.min(2, Math.max(1, Math.ceil(keywords.length * 0.25)));
+    return matched.length >= target;
+  }
+
+  function buildWrittenKeywords(text) {
+    return String(text || "")
+      .replace(/[【】「」『』（）()［］\[\]{}]/gu, " ")
+      .split(/[\s、。,:：;；!?！？・\-/]+/u)
+      .map((token) => normalizeKeyText(token))
+      .filter(Boolean);
   }
 
   function getQuestionDetail(topicId, questionNo, autoCreate) {
@@ -5745,6 +5996,13 @@
       return `${head}\n（論点: ${trend}）`;
     }
     return head;
+  }
+
+  function buildDrillPromptText(rawPrompt, formatLabel) {
+    const prompt = String(rawPrompt || "")
+      .replace(/^【[^】]*】/u, "")
+      .trim();
+    return `[${formatLabel}] ${prompt || "次の設問に答えなさい。"}`;
   }
 
   function buildSectionPreStudyAccordionHtml(topic, section, options = {}) {

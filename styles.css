@@ -788,6 +788,14 @@ button.ng {
   flex: 1 1 150px;
 }
 
+#drillWrittenWrap {
+  margin-bottom: 8px;
+}
+
+#drillWrittenInput {
+  min-height: 88px;
+}
+
 #drillResultInline {
   margin: 4px 0 8px;
 }

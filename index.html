@@ -266,7 +266,7 @@
       <section class="card" id="drillCard">
         <h2>5. 反復ドリル</h2>
         <p id="drillRuleTop" class="note"></p>
-        <p class="note">流れ: 3択を選ぶ → 解説を見る → 次の問題へ</p>
+        <p class="note">流れ: 選択式または記述で回答 → 解説を見る → 次の問題へ</p>
         <div class="row">
           <button id="drillStartFromTabBtn" type="button">この画面からドリル開始</button>
         </div>
@@ -293,6 +293,13 @@
           <div id="drillQuestionPanel" class="hidden">
             <p id="drillPrompt" class="questionBox"></p>
             <div id="drillChoicesWrap" class="choiceList"></div>
+            <div id="drillWrittenWrap" class="hidden">
+              <label for="drillWrittenInput">記述回答</label>
+              <textarea id="drillWrittenInput" rows="3" placeholder="要点を短く入力"></textarea>
+              <div class="row">
+                <button id="drillWrittenSubmitBtn" type="button">回答を判定</button>
+              </div>
+            </div>
             <div id="drillResultInline" class="row hidden">
               <span id="drillResultBadge" class="resultBadge"></span>
               <button id="applyReviewResultBtn" type="button" class="hidden">次の問題へ</button>
