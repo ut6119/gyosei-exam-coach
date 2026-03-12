@@ -152,6 +152,13 @@
           <label for="todayQuestionOverrideInput">今日の問題数(上書き)</label>
           <input id="todayQuestionOverrideInput" type="number" min="1" max="500" step="1" />
         </div>
+        <div class="row">
+          <label for="drillSourceModeSelect">ドリル問題モード</label>
+          <select id="drillSourceModeSelect">
+            <option value="official">原文モード（公式過去問）</option>
+            <option value="trend">傾向モード（学習用）</option>
+          </select>
+        </div>
         <button id="saveSettingsBtn" type="button">設定を保存</button>
 
         <div class="summaryBox">
@@ -479,6 +486,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+    <script src="./official-bank.js"></script>
     <script src="./app.js"></script>
   </body>
 </html>

@@ -1445,7 +1445,8 @@
         dailyMinutes: 120,
         targetPerfectRounds: 2,
         todayQuestionOverride: "",
-        mockDurationMinutes: 180
+        mockDurationMinutes: 180,
+        drillSourceMode: "official"
       },
       topics,
       progress,
@@ -1579,6 +1580,7 @@
     state.settings.dailyMinutes = clampNumber(state.settings.dailyMinutes, 10, 600, 120);
     state.settings.targetPerfectRounds = clampNumber(state.settings.targetPerfectRounds, 1, 10, 2);
     state.settings.mockDurationMinutes = clampNumber(state.settings.mockDurationMinutes, 60, 240, 180);
+    state.settings.drillSourceMode = normalizeDrillSourceMode(state.settings.drillSourceMode);
 
     if (state.settings.todayQuestionOverride !== "") {
       const override = Number(state.settings.todayQuestionOverride);
@@ -2162,14 +2164,21 @@
     renderAll();
   }
 
+  function normalizeDrillSourceMode(value) {
+    const mode = String(value || "").trim();
+    return mode === "trend" ? "trend" : "official";
+  }
+
   function onSaveSettings() {
     const dailyMinutes = clampNumber(byId("dailyMinutesInput").value, 10, 600, 120);
     const targetPerfectRounds = clampNumber(byId("targetPerfectRoundsInput").value, 1, 10, 2);
     const overrideRaw = byId("todayQuestionOverrideInput").value.trim();
+    const drillSourceMode = normalizeDrillSourceMode(byId("drillSourceModeSelect").value);
 
     state.settings.dailyMinutes = dailyMinutes;
     state.settings.targetPerfectRounds = targetPerfectRounds;
     state.settings.todayQuestionOverride = "";
+    state.settings.drillSourceMode = drillSourceMode;
 
     if (overrideRaw !== "") {
       const override = Number(overrideRaw);
@@ -2840,7 +2849,9 @@
       correctCount: 0,
       wrongCount: 0,
       startedAt: today,
-      message: "ドリル開始。本番形式（5択/記述）で解き、解説を確認しながら進めます。",
+      message: getDrillSourceMode() === "official"
+        ? "ドリル開始。原文モード（公開過去問）で進めます。"
+        : "ドリル開始。本番形式（5択/記述）で解き、解説を確認しながら進めます。",
       showExplanation: false,
       selectedChoice: -1,
       pendingResult: null,
@@ -4094,6 +4105,7 @@
     byId("dailyMinutesInput").value = String(state.settings.dailyMinutes);
     byId("targetPerfectRoundsInput").value = String(state.settings.targetPerfectRounds);
     byId("todayQuestionOverrideInput").value = state.settings.todayQuestionOverride;
+    byId("drillSourceModeSelect").value = normalizeDrillSourceMode(state.settings.drillSourceMode);
 
     const authLine = firebaseUser && firebaseUser.uid
       ? `ログイン状態: ${firebaseUser.email || firebaseUser.uid}`
@@ -4583,7 +4595,10 @@
       ? Math.min(state.drill.pointer, state.drill.queue.length)
       : 0;
     const todayPlannedCount = getTodayPlannedCount();
-    byId("drillRuleTop").textContent = `ルール: 各セクションを${state.settings.targetPerfectRounds}回連続満点でクリア。不正解でそのセクション先頭へ戻る。`;
+    const modeLabel = getDrillSourceMode() === "official"
+      ? "原文モード（公開過去問）"
+      : "傾向モード（学習用）";
+    byId("drillRuleTop").textContent = `ルール: ${modeLabel} / 各セクションを${state.settings.targetPerfectRounds}回連続満点でクリア。不正解でそのセクション先頭へ戻る。`;
 
     if (state.drill.active) {
       setGauge("drillGaugeFill", "drillGaugeLabel", doneCount, state.drill.queue.length, "0%");
@@ -4662,9 +4677,16 @@
 
     byId("drillPrompt").textContent = buildDrillPromptText(detail.prompt, formatLabel);
     const trendStats = estimateQuestionTrendStats(current.topic.id, detail);
-    byId("drillFrequencyLine").textContent =
+    let frequencyLine =
       `過去10年目標分析（公開${PAST_PUBLIC_YEAR_COUNT}年）出題率: ${trendStats.percent}% (${trendStats.hits}/${trendStats.years}年)` +
       (trendStats.topToken ? ` / 頻出語: ${trendStats.topToken}` : "");
+    if (packet.sourceMode === "official") {
+      const sourceLabel = String(detail.officialSourceLabel || detail.trendTag || "").trim();
+      if (sourceLabel) {
+        frequencyLine += ` / 出典: ${sourceLabel}`;
+      }
+    }
+    byId("drillFrequencyLine").textContent = frequencyLine;
     const showResult = state.drill.showExplanation && typeof state.drill.pendingResult === "boolean";
     const isWritten = format === "written";
 
@@ -5210,7 +5232,80 @@
     return normalizeDrillFormat(inferred, topic.id);
   }
 
+  function getDrillSourceMode() {
+    return normalizeDrillSourceMode(state.settings && state.settings.drillSourceMode);
+  }
+
+  function getOfficialTopicPool(topicId) {
+    const root = window.OFFICIAL_BANK_BY_TOPIC;
+    if (!root || typeof root !== "object") {
+      return [];
+    }
+    const pool = root[topicId];
+    return Array.isArray(pool) ? pool : [];
+  }
+
+  function pickOfficialQuestionEntry(topicId, questionNo) {
+    const pool = getOfficialTopicPool(topicId);
+    if (pool.length === 0) {
+      return null;
+    }
+    const safeNo = Math.max(1, Math.round(Number(questionNo) || 1));
+    const offset = seedFromString(topicId) % pool.length;
+    const index = (safeNo - 1 + offset) % pool.length;
+    return pool[index] || null;
+  }
+
+  function buildOfficialQuestionDetail(topic, questionNo) {
+    const picked = pickOfficialQuestionEntry(topic.id, questionNo);
+    if (!picked) {
+      return null;
+    }
+    const choices = Array.isArray(picked.choices)
+      ? picked.choices.map((choice) => String(choice || "").trim()).filter(Boolean).slice(0, 5)
+      : [];
+    if (choices.length < 5) {
+      return null;
+    }
+    const parsedCorrect = Math.round(Number(picked.correctIndex));
+    const correctIndex = Number.isInteger(parsedCorrect) && parsedCorrect >= 0 && parsedCorrect < choices.length
+      ? parsedCorrect
+      : 0;
+    const sourceLabel = String(picked.sourceLabel || "").trim();
+    const sourceUrl = String(picked.sourceUrl || "").trim();
+    const answerUrl = String(picked.sourceAnswerUrl || "").trim();
+    const prompt = String(picked.prompt || "").trim();
+
+    return normalizeQuestion({
+      prompt,
+      choices,
+      correctIndex,
+      drillFormat: "five",
+      answer: sourceLabel ? `公式正解（${sourceLabel}）` : "公式正解",
+      explanation: sourceUrl ? `原文出典: ${sourceUrl}` : "原文モードの問題です。",
+      pitfall: "原文をそのまま読んで、主語・要件・例外を丁寧に確認する。",
+      terms: extractTrendTermsFromPrompt(prompt),
+      trendTag: sourceLabel ? `原文: ${sourceLabel}` : "原文モード",
+      officialSourceLabel: sourceLabel,
+      officialSourceUrl: sourceUrl,
+      officialAnswerUrl: answerUrl
+    });
+  }
+
   function getDrillQuestionPacket(topic, questionNo) {
+    const sourceMode = getDrillSourceMode();
+    if (sourceMode === "official" && topic.id !== "describe") {
+      const officialDetail = buildOfficialQuestionDetail(topic, questionNo);
+      if (officialDetail) {
+        return {
+          format: "five",
+          formatLabel: "原文5択",
+          detail: officialDetail,
+          sourceMode: "official"
+        };
+      }
+    }
+
     const detail = getQuestionDetail(topic.id, questionNo, false);
     const format = resolveDrillQuestionFormat(topic, detail);
     const formatLabel = format === "written" ? "記述式" : "5択";
@@ -5219,14 +5314,16 @@
       return {
         format,
         formatLabel,
-        detail: buildFiveChoiceDetail(topic, questionNo, detail)
+        detail: buildFiveChoiceDetail(topic, questionNo, detail),
+        sourceMode: "trend"
       };
     }
 
     return {
       format,
       formatLabel,
-      detail
+      detail,
+      sourceMode: "trend"
     };
   }
 
@@ -6030,6 +6127,30 @@
       }
     }
     return best;
+  }
+
+  function extractTrendTermsFromPrompt(promptText) {
+    const chunks = String(promptText || "")
+      .split(/[\s、。,:：;；!?！？・\/\-\n「」『』（）()［］\[\]{}]+/u)
+      .map((part) => String(part || "").trim())
+      .filter((part) => part.length >= 2);
+    const seen = new Set();
+    const picked = [];
+    for (const chunk of chunks) {
+      const key = normalizeKeyText(chunk);
+      if (!key || seen.has(key)) {
+        continue;
+      }
+      seen.add(key);
+      if (TREND_STOP_TERMS.has(chunk) || TREND_STOP_TERMS.has(key)) {
+        continue;
+      }
+      picked.push(chunk);
+      if (picked.length >= 6) {
+        break;
+      }
+    }
+    return picked;
   }
 
   function estimateQuestionTrendStats(topicId, detail) {
