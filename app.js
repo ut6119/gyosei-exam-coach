@@ -5142,28 +5142,31 @@
 
   function resolveDrillSectionFormat(topic, section, questionNo) {
     if (!topic || !section) {
-      return "three";
+      return "five";
     }
     const rules = DRILL_SECTION_FORMAT_RULES[topic.id];
     if (!Array.isArray(rules) || rules.length === 0) {
-      return "three";
+      return topic.id === "describe" ? "written" : "five";
     }
     const sectionName = String(section.name || "");
     for (const rule of rules) {
       const key = String((rule && rule.match) || "");
       if (!key || sectionName.includes(key)) {
-        return String((rule && rule.format) || "three");
+        return String((rule && rule.format) || (topic.id === "describe" ? "written" : "five"));
       }
     }
-    const fallback = String((rules[rules.length - 1] && rules[rules.length - 1].format) || "three");
-    return fallback || "three";
+    const fallback = String((rules[rules.length - 1] && rules[rules.length - 1].format) || "");
+    if (fallback === "written" || fallback === "five") {
+      return fallback;
+    }
+    return topic.id === "describe" ? "written" : "five";
   }
 
   function getDrillQuestionPacket(topic, questionNo) {
     const detail = getQuestionDetail(topic.id, questionNo, false);
     const section = getCurrentSection(topic, questionNo);
     const format = resolveDrillSectionFormat(topic, section, questionNo);
-    const formatLabel = format === "written" ? "記述式" : format === "five" ? "5択" : "3択";
+    const formatLabel = format === "written" ? "記述式" : "5択";
 
     if (format === "five") {
       return {
