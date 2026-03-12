@@ -1366,6 +1366,12 @@
       selectedChoice: -1,
       pendingResult: null,
       writtenAnswer: "",
+      multiAnswer: {
+        a: "",
+        i: "",
+        u: "",
+        e: ""
+      },
       singleMode: false,
       singleTopicId: "",
       singleQuestionNo: 1,
@@ -1633,6 +1639,16 @@
       state.drill.pendingResult = null;
     }
     state.drill.writtenAnswer = String(state.drill.writtenAnswer || "");
+    if (!state.drill.multiAnswer || typeof state.drill.multiAnswer !== "object") {
+      state.drill.multiAnswer = { a: "", i: "", u: "", e: "" };
+    } else {
+      state.drill.multiAnswer = {
+        a: String(state.drill.multiAnswer.a || ""),
+        i: String(state.drill.multiAnswer.i || ""),
+        u: String(state.drill.multiAnswer.u || ""),
+        e: String(state.drill.multiAnswer.e || "")
+      };
+    }
     state.drill.singleMode = Boolean(state.drill.singleMode);
     state.drill.singleTopicId = String(state.drill.singleTopicId || "");
     state.drill.singleQuestionNo = Math.max(1, Math.round(Number(state.drill.singleQuestionNo) || 1));
@@ -2011,6 +2027,7 @@
     byId("drillPrevBtn").addEventListener("click", onDrillPrevQuestion);
     byId("drillNavNextBtn").addEventListener("click", onDrillNavNextQuestion);
     byId("drillChoicesWrap").addEventListener("click", onDrillChoiceClick);
+    byId("drillMultiSubmitBtn").addEventListener("click", onDrillMultiSubmit);
     byId("drillWrittenSubmitBtn").addEventListener("click", onDrillWrittenSubmit);
     byId("applyReviewResultBtn").addEventListener("click", onApplyReviewResult);
     byId("skipBtn").addEventListener("click", onSkipDrillQuestion);
@@ -2851,11 +2868,12 @@
       startedAt: today,
       message: getDrillSourceMode() === "official"
         ? "ドリル開始。原文モード（公開過去問）で進めます。"
-        : "ドリル開始。本番形式（5択/記述）で解き、解説を確認しながら進めます。",
+        : "ドリル開始。本番形式（5択/多肢/記述）で解き、解説を確認しながら進めます。",
       showExplanation: false,
       selectedChoice: -1,
       pendingResult: null,
       writtenAnswer: "",
+      multiAnswer: { a: "", i: "", u: "", e: "" },
       singleMode: false,
       singleTopicId: "",
       singleQuestionNo: 1,
@@ -2882,6 +2900,7 @@
     state.drill.selectedChoice = -1;
     state.drill.pendingResult = null;
     state.drill.writtenAnswer = "";
+    state.drill.multiAnswer = { a: "", i: "", u: "", e: "" };
     state.drill.message = "前の問題へ移動しました。";
     saveState();
     renderDrill();
@@ -2924,6 +2943,12 @@
       renderDrill();
       return;
     }
+    if (packet.format === "multi") {
+      state.drill.message = "この問題は多肢選択式です。ア〜エに番号を選んで『回答を判定』を押してください。";
+      saveState();
+      renderDrill();
+      return;
+    }
     const detail = packet.detail;
     const picked = Number(button.dataset.choiceIndex);
     if (!Number.isInteger(picked) || picked < 0 || picked >= detail.choices.length) {
@@ -2932,10 +2957,50 @@
 
     state.drill.selectedChoice = picked;
     state.drill.writtenAnswer = "";
+    state.drill.multiAnswer = { a: "", i: "", u: "", e: "" };
     state.drill.pendingResult = picked === detail.correctIndex;
     state.drill.showExplanation = true;
     state.drill.message = "解説を確認してから『次の問題へ』を押してください。";
 
+    saveState();
+    renderDrill();
+  }
+
+  function onDrillMultiSubmit() {
+    if (!state.drill.active) {
+      return;
+    }
+    const current = getCurrentDrillQuestionContext();
+    if (!current) {
+      return;
+    }
+    const packet = getDrillQuestionPacket(current.topic, current.questionNo);
+    if (packet.format !== "multi") {
+      state.drill.message = "この問題は多肢選択式ではありません。";
+      saveState();
+      renderDrill();
+      return;
+    }
+
+    const values = {
+      a: String(byId("drillMultiA").value || "").trim(),
+      i: String(byId("drillMultiI").value || "").trim(),
+      u: String(byId("drillMultiU").value || "").trim(),
+      e: String(byId("drillMultiE").value || "").trim()
+    };
+    if (!values.a || !values.i || !values.u || !values.e) {
+      state.drill.message = "ア〜エをすべて選択してください。";
+      saveState();
+      renderDrill();
+      return;
+    }
+
+    state.drill.multiAnswer = values;
+    state.drill.selectedChoice = -1;
+    state.drill.writtenAnswer = "";
+    state.drill.pendingResult = judgeMultiDrillAnswer(packet.detail, values);
+    state.drill.showExplanation = true;
+    state.drill.message = "解説を確認してから『次の問題へ』を押してください。";
     saveState();
     renderDrill();
   }
@@ -2950,7 +3015,9 @@
     }
     const packet = getDrillQuestionPacket(current.topic, current.questionNo);
     if (packet.format !== "written") {
-      state.drill.message = "この問題は選択式です。選択肢を選んでください。";
+      state.drill.message = packet.format === "multi"
+        ? "この問題は多肢選択式です。ア〜エを選んでください。"
+        : "この問題は選択式です。選択肢を選んでください。";
       saveState();
       renderDrill();
       return;
@@ -2966,6 +3033,7 @@
 
     state.drill.writtenAnswer = input;
     state.drill.selectedChoice = -1;
+    state.drill.multiAnswer = { a: "", i: "", u: "", e: "" };
     state.drill.pendingResult = judgeWrittenDrillAnswer(packet.detail, input);
     state.drill.showExplanation = true;
     state.drill.message = "解説を確認してから『次の問題へ』を押してください。";
@@ -2982,9 +3050,13 @@
       const current = getCurrentDrillQuestionContext();
       if (current) {
         const packet = getDrillQuestionPacket(current.topic, current.questionNo);
-        state.drill.message = packet.format === "written"
-          ? "先に記述回答を入力して『回答を判定』を押してください。"
-          : "先に選択肢から1つ選んでください。";
+        if (packet.format === "written") {
+          state.drill.message = "先に記述回答を入力して『回答を判定』を押してください。";
+        } else if (packet.format === "multi") {
+          state.drill.message = "先にア〜エを選択して『回答を判定』を押してください。";
+        } else {
+          state.drill.message = "先に選択肢から1つ選んでください。";
+        }
       } else {
         state.drill.message = "先に回答してください。";
       }
@@ -3005,6 +3077,7 @@
     state.drill.selectedChoice = -1;
     state.drill.pendingResult = null;
     state.drill.writtenAnswer = "";
+    state.drill.multiAnswer = { a: "", i: "", u: "", e: "" };
     state.drill.pointer += 1;
     state.drill.message = "スキップしました。";
 
@@ -3205,9 +3278,13 @@
 
     if (!state.drill.showExplanation) {
       const packet = getDrillQuestionPacket(current.topic, current.questionNo);
-      state.drill.message = packet.format === "written"
-        ? "先に記述回答を入力して『回答を判定』を押してください。"
-        : "先に選択肢から1つ選んでください。";
+      if (packet.format === "written") {
+        state.drill.message = "先に記述回答を入力して『回答を判定』を押してください。";
+      } else if (packet.format === "multi") {
+        state.drill.message = "先にア〜エを選択して『回答を判定』を押してください。";
+      } else {
+        state.drill.message = "先に選択肢から1つ選んでください。";
+      }
       saveState();
       renderDrill();
       return;
@@ -3251,6 +3328,7 @@
       state.drill.selectedChoice = -1;
       state.drill.pendingResult = null;
       state.drill.writtenAnswer = "";
+      state.drill.multiAnswer = { a: "", i: "", u: "", e: "" };
       state.drill.pointer += 1;
 
       finalizeDrillIfDone();
@@ -3309,6 +3387,7 @@
     state.drill.selectedChoice = -1;
     state.drill.pendingResult = null;
     state.drill.writtenAnswer = "";
+    state.drill.multiAnswer = { a: "", i: "", u: "", e: "" };
     state.drill.pointer += 1;
 
     finalizeDrillIfDone();
@@ -3330,6 +3409,7 @@
     state.drill.selectedChoice = -1;
     state.drill.pendingResult = null;
     state.drill.writtenAnswer = "";
+    state.drill.multiAnswer = { a: "", i: "", u: "", e: "" };
     if (state.drill.singleMode) {
       const topic = state.topics.find((item) => item.id === state.drill.singleTopicId);
       const label = topic
@@ -4581,6 +4661,12 @@
     const active = byId("drillActive");
     const questionPanel = byId("drillQuestionPanel");
     const choicesWrap = byId("drillChoicesWrap");
+    const multiWrap = byId("drillMultiWrap");
+    const multiA = byId("drillMultiA");
+    const multiI = byId("drillMultiI");
+    const multiU = byId("drillMultiU");
+    const multiE = byId("drillMultiE");
+    const multiSubmitBtn = byId("drillMultiSubmitBtn");
     const writtenWrap = byId("drillWrittenWrap");
     const writtenInput = byId("drillWrittenInput");
     const writtenSubmitBtn = byId("drillWrittenSubmitBtn");
@@ -4625,6 +4711,13 @@
       byId("drillFrequencyLine").textContent = "";
       choicesWrap.innerHTML = "";
       choicesWrap.classList.remove("hidden");
+      multiWrap.classList.add("hidden");
+      multiA.innerHTML = "";
+      multiI.innerHTML = "";
+      multiU.innerHTML = "";
+      multiE.innerHTML = "";
+      multiSubmitBtn.classList.remove("hidden");
+      multiSubmitBtn.disabled = false;
       writtenWrap.classList.add("hidden");
       writtenInput.value = "";
       writtenInput.disabled = false;
@@ -4689,21 +4782,63 @@
     byId("drillFrequencyLine").textContent = frequencyLine;
     const showResult = state.drill.showExplanation && typeof state.drill.pendingResult === "boolean";
     const isWritten = format === "written";
+    const isMulti = format === "multi";
 
     if (isWritten) {
       choicesWrap.innerHTML = "";
       choicesWrap.classList.add("hidden");
+      multiWrap.classList.add("hidden");
+      multiA.innerHTML = "";
+      multiI.innerHTML = "";
+      multiU.innerHTML = "";
+      multiE.innerHTML = "";
+      multiSubmitBtn.classList.remove("hidden");
+      multiSubmitBtn.disabled = false;
       writtenWrap.classList.remove("hidden");
       writtenInput.disabled = showResult;
       writtenInput.value = state.drill.writtenAnswer || "";
       writtenSubmitBtn.classList.toggle("hidden", showResult);
       writtenSubmitBtn.disabled = showResult;
+    } else if (isMulti) {
+      writtenWrap.classList.add("hidden");
+      writtenInput.value = "";
+      writtenInput.disabled = false;
+      writtenSubmitBtn.classList.remove("hidden");
+      writtenSubmitBtn.disabled = false;
+      choicesWrap.innerHTML = "";
+      choicesWrap.classList.add("hidden");
+      multiWrap.classList.remove("hidden");
+      const optionItems = getOfficialMultiOptionItems(detail);
+      const optionsHtml = ["<option value=\"\">選択</option>"]
+        .concat(optionItems.map((item) => `<option value="${escapeAttr(item.value)}">${escapeHtml(item.label)}</option>`))
+        .join("");
+      multiA.innerHTML = optionsHtml;
+      multiI.innerHTML = optionsHtml;
+      multiU.innerHTML = optionsHtml;
+      multiE.innerHTML = optionsHtml;
+      multiA.value = String(state.drill.multiAnswer && state.drill.multiAnswer.a || "");
+      multiI.value = String(state.drill.multiAnswer && state.drill.multiAnswer.i || "");
+      multiU.value = String(state.drill.multiAnswer && state.drill.multiAnswer.u || "");
+      multiE.value = String(state.drill.multiAnswer && state.drill.multiAnswer.e || "");
+      multiA.disabled = showResult;
+      multiI.disabled = showResult;
+      multiU.disabled = showResult;
+      multiE.disabled = showResult;
+      multiSubmitBtn.classList.toggle("hidden", showResult);
+      multiSubmitBtn.disabled = showResult;
     } else {
       writtenWrap.classList.add("hidden");
       writtenInput.value = "";
       writtenInput.disabled = false;
       writtenSubmitBtn.classList.remove("hidden");
       writtenSubmitBtn.disabled = false;
+      multiWrap.classList.add("hidden");
+      multiA.innerHTML = "";
+      multiI.innerHTML = "";
+      multiU.innerHTML = "";
+      multiE.innerHTML = "";
+      multiSubmitBtn.classList.remove("hidden");
+      multiSubmitBtn.disabled = false;
       choicesWrap.classList.remove("hidden");
       choicesWrap.innerHTML = detail.choices
         .map((choice, index) => {
@@ -4745,6 +4880,8 @@
       if (isWritten) {
         const canonical = String(detail.answer || detail.choices[detail.correctIndex] || "").trim();
         byId("drillChoiceLine").textContent = `あなたの回答: ${state.drill.writtenAnswer || "未入力"} / 模範要点: ${canonical}`;
+      } else if (isMulti) {
+        byId("drillChoiceLine").textContent = buildMultiAnswerCompareLine(detail, state.drill.multiAnswer);
       } else {
         const picked = detail.choices[state.drill.selectedChoice] || "未選択";
         const correct = detail.choices[detail.correctIndex] || "";
@@ -4772,9 +4909,15 @@
     byId("drillExplanationLine").textContent = "";
     byId("drillPitfallLine").textContent = "";
     byId("drillTermsLine").textContent = "";
-    byId("drillMessage").textContent = state.drill.message || (isWritten
-      ? "記述欄に回答し『回答を判定』を押してください。"
-      : `${formatLabel}から1つ選んでください。`);
+    if (state.drill.message) {
+      byId("drillMessage").textContent = state.drill.message;
+    } else if (isWritten) {
+      byId("drillMessage").textContent = "記述欄に回答し『回答を判定』を押してください。";
+    } else if (isMulti) {
+      byId("drillMessage").textContent = "ア〜エに入る番号を選択し『回答を判定』を押してください。";
+    } else {
+      byId("drillMessage").textContent = `${formatLabel}から1つ選んでください。`;
+    }
   }
 
   function renderQuestionEditor() {
@@ -5201,6 +5344,9 @@
 
   function normalizeDrillFormat(rawFormat, topicId) {
     const text = String(rawFormat || "").trim();
+    if (text === "multi") {
+      return "multi";
+    }
     if (text === "written") {
       return "written";
     }
@@ -5215,6 +5361,9 @@
       return "written";
     }
     const prompt = String(promptText || "").trim();
+    if (/空欄\\s*ア\\s*〜\\s*エ|1\\s*〜\\s*20|多肢選択式/u.test(prompt)) {
+      return "multi";
+    }
     if (/記述式|記述問題|字数/u.test(prompt)) {
       return "written";
     }
@@ -5225,7 +5374,7 @@
     if (!topic) {
       return "five";
     }
-    if (detail && (detail.drillFormat === "written" || detail.drillFormat === "five")) {
+    if (detail && (detail.drillFormat === "written" || detail.drillFormat === "five" || detail.drillFormat === "multi")) {
       return detail.drillFormat;
     }
     const inferred = inferDrillFormatFromPrompt(detail && detail.prompt, topic.id);
@@ -5245,43 +5394,72 @@
     return Array.isArray(pool) ? pool : [];
   }
 
-  function pickOfficialQuestionEntry(topicId, questionNo) {
-    const pool = getOfficialTopicPool(topicId);
+  function getOfficialSpecialTopicPool(topicId) {
+    const root = window.OFFICIAL_SPECIAL_BANK_BY_TOPIC;
+    if (!root || typeof root !== "object") {
+      return [];
+    }
+    const pool = root[topicId];
+    return Array.isArray(pool) ? pool : [];
+  }
+
+  function getOfficialSpecialGlobalPool(format) {
+    const root = window.OFFICIAL_SPECIAL_BANK_BY_TOPIC;
+    if (!root || typeof root !== "object") {
+      return [];
+    }
+    const target = String(format || "").trim();
+    const merged = [];
+    for (const key of Object.keys(root)) {
+      const arr = Array.isArray(root[key]) ? root[key] : [];
+      for (const item of arr) {
+        if (!item || typeof item !== "object") {
+          continue;
+        }
+        if (String(item.format || "").trim() === target) {
+          merged.push(item);
+        }
+      }
+    }
+    return merged;
+  }
+
+  function pickOfficialQuestionEntryFromPool(pool, seedKey, questionNo) {
     if (pool.length === 0) {
       return null;
     }
     const safeNo = Math.max(1, Math.round(Number(questionNo) || 1));
-    const offset = seedFromString(topicId) % pool.length;
+    const offset = seedFromString(String(seedKey || "")) % pool.length;
     const index = (safeNo - 1 + offset) % pool.length;
     return pool[index] || null;
   }
 
-  function buildOfficialQuestionDetail(topic, questionNo) {
-    const picked = pickOfficialQuestionEntry(topic.id, questionNo);
-    if (!picked) {
+  function buildOfficialFiveChoiceDetail(entry) {
+    if (!entry || typeof entry !== "object") {
       return null;
     }
-    const choices = Array.isArray(picked.choices)
-      ? picked.choices.map((choice) => String(choice || "").trim()).filter(Boolean).slice(0, 5)
+    const prompt = String(entry.prompt || "").trim();
+    const choices = Array.isArray(entry.choices)
+      ? entry.choices.map((choice) => String(choice || "").trim()).filter(Boolean).slice(0, 5)
       : [];
-    if (choices.length < 5) {
+    if (!prompt || choices.length < 5) {
       return null;
     }
-    const parsedCorrect = Math.round(Number(picked.correctIndex));
+    const parsedCorrect = Math.round(Number(entry.correctIndex));
     const correctIndex = Number.isInteger(parsedCorrect) && parsedCorrect >= 0 && parsedCorrect < choices.length
       ? parsedCorrect
       : 0;
-    const sourceLabel = String(picked.sourceLabel || "").trim();
-    const sourceUrl = String(picked.sourceUrl || "").trim();
-    const answerUrl = String(picked.sourceAnswerUrl || "").trim();
-    const prompt = String(picked.prompt || "").trim();
+    const sourceLabel = String(entry.sourceLabel || "").trim();
+    const sourceUrl = String(entry.sourceUrl || "").trim();
+    const answerUrl = String(entry.sourceAnswerUrl || "").trim();
+    const correctText = String(choices[correctIndex] || "").trim();
 
-    return normalizeQuestion({
+    return {
       prompt,
       choices,
       correctIndex,
       drillFormat: "five",
-      answer: sourceLabel ? `公式正解（${sourceLabel}）` : "公式正解",
+      answer: correctText || (sourceLabel ? `公式正解（${sourceLabel}）` : "公式正解"),
       explanation: sourceUrl ? `原文出典: ${sourceUrl}` : "原文モードの問題です。",
       pitfall: "原文をそのまま読んで、主語・要件・例外を丁寧に確認する。",
       terms: extractTrendTermsFromPrompt(prompt),
@@ -5289,27 +5467,188 @@
       officialSourceLabel: sourceLabel,
       officialSourceUrl: sourceUrl,
       officialAnswerUrl: answerUrl
-    });
+    };
+  }
+
+  function buildOfficialMultiDetail(entry) {
+    if (!entry || typeof entry !== "object") {
+      return null;
+    }
+    const prompt = String(entry.prompt || "").trim();
+    const rawOptions = Array.isArray(entry.multiOptions) ? entry.multiOptions : [];
+    const optionItems = rawOptions
+      .map((item) => ({
+        no: Math.max(1, Math.round(Number(item && item.no) || 0)),
+        text: String(item && item.text || "").trim()
+      }))
+      .filter((item) => Number.isFinite(item.no) && item.no > 0 && item.no <= 50);
+    const correct = entry.multiCorrect && typeof entry.multiCorrect === "object"
+      ? entry.multiCorrect
+      : null;
+    if (!prompt || optionItems.length === 0 || !correct) {
+      return null;
+    }
+
+    const a = String(correct["ア"] || "").trim();
+    const i = String(correct["イ"] || "").trim();
+    const u = String(correct["ウ"] || "").trim();
+    const e = String(correct["エ"] || "").trim();
+    if (!a || !i || !u || !e) {
+      return null;
+    }
+
+    const sourceLabel = String(entry.sourceLabel || "").trim();
+    const sourceUrl = String(entry.sourceUrl || "").trim();
+    const answerUrl = String(entry.sourceAnswerUrl || "").trim();
+    const answerText = `ア:${a} イ:${i} ウ:${u} エ:${e}`;
+
+    return {
+      prompt,
+      choices: [],
+      correctIndex: 0,
+      drillFormat: "multi",
+      multiOptions: optionItems,
+      multiCorrect: {
+        ア: a,
+        イ: i,
+        ウ: u,
+        エ: e
+      },
+      answer: answerText,
+      explanation: sourceUrl ? `原文出典: ${sourceUrl}` : "原文モードの多肢選択問題です。",
+      pitfall: "空欄ごとに文脈を分けて判断し、似た語句の入替えミスを防ぐ。",
+      terms: extractTrendTermsFromPrompt(prompt),
+      trendTag: sourceLabel ? `原文: ${sourceLabel}` : "原文モード",
+      officialSourceLabel: sourceLabel,
+      officialSourceUrl: sourceUrl,
+      officialAnswerUrl: answerUrl
+    };
+  }
+
+  function buildOfficialWrittenDetail(entry) {
+    if (!entry || typeof entry !== "object") {
+      return null;
+    }
+    const prompt = String(entry.prompt || "").trim();
+    const answerText = String(entry.answerText || "").trim();
+    if (!prompt || !answerText) {
+      return null;
+    }
+    const sourceLabel = String(entry.sourceLabel || "").trim();
+    const sourceUrl = String(entry.sourceUrl || "").trim();
+    const answerUrl = String(entry.sourceAnswerUrl || "").trim();
+
+    return {
+      prompt,
+      choices: [answerText],
+      correctIndex: 0,
+      drillFormat: "written",
+      answer: answerText,
+      explanation: sourceUrl ? `原文出典: ${sourceUrl}` : "原文モードの記述問題です。",
+      pitfall: "主語・要件・結論の3点を落とさず、40字程度で簡潔にまとめる。",
+      terms: extractTrendTermsFromPrompt(`${prompt} ${answerText}`),
+      trendTag: sourceLabel ? `原文: ${sourceLabel}` : "原文モード",
+      officialSourceLabel: sourceLabel,
+      officialSourceUrl: sourceUrl,
+      officialAnswerUrl: answerUrl
+    };
+  }
+
+  function buildOfficialQuestionPacket(topic, questionNo) {
+    const fivePool = getOfficialTopicPool(topic.id);
+    const specialPool = getOfficialSpecialTopicPool(topic.id);
+    const multiPool = specialPool.filter((item) => String(item && item.format || "").trim() === "multi");
+    const writtenPool = specialPool.filter((item) => String(item && item.format || "").trim() === "written");
+    const safeNo = Math.max(1, Math.round(Number(questionNo) || 1));
+
+    const pickSpecial = (format) => {
+      const pool = format === "multi" ? multiPool : writtenPool;
+      if (pool.length === 0) {
+        return null;
+      }
+      const picked = pickOfficialQuestionEntryFromPool(pool, `${topic.id}:official:${format}`, safeNo);
+      if (!picked) {
+        return null;
+      }
+      const detail = format === "multi"
+        ? buildOfficialMultiDetail(picked)
+        : buildOfficialWrittenDetail(picked);
+      if (!detail) {
+        return null;
+      }
+      return {
+        format,
+        formatLabel: format === "multi" ? "原文多肢" : "原文記述",
+        detail,
+        sourceMode: "official"
+      };
+    };
+
+    if (topic.id === "describe") {
+      const packet = pickSpecial("written");
+      if (packet) {
+        return packet;
+      }
+      const globalWritten = getOfficialSpecialGlobalPool("written");
+      if (globalWritten.length > 0) {
+        const picked = pickOfficialQuestionEntryFromPool(globalWritten, "describe:official:written", safeNo);
+        const detail = buildOfficialWrittenDetail(picked);
+        if (detail) {
+          return {
+            format: "written",
+            formatLabel: "原文記述",
+            detail,
+            sourceMode: "official"
+          };
+        }
+      }
+      return null;
+    }
+
+    const cycleSeed = seedFromString(`${topic.id}:official-cycle`) % 10;
+    const slot = (safeNo + cycleSeed) % 10;
+    if ((slot === 2 || slot === 7) && multiPool.length > 0) {
+      const packet = pickSpecial("multi");
+      if (packet) {
+        return packet;
+      }
+    }
+    if ((slot === 5 || slot === 9) && writtenPool.length > 0) {
+      const packet = pickSpecial("written");
+      if (packet) {
+        return packet;
+      }
+    }
+
+    const pickedFive = pickOfficialQuestionEntryFromPool(fivePool, `${topic.id}:official:five`, safeNo);
+    const fiveDetail = buildOfficialFiveChoiceDetail(pickedFive);
+    if (fiveDetail) {
+      return {
+        format: "five",
+        formatLabel: "原文5択",
+        detail: fiveDetail,
+        sourceMode: "official"
+      };
+    }
+
+    const fallbackSpecial = pickSpecial("multi") || pickSpecial("written");
+    return fallbackSpecial;
   }
 
   function getDrillQuestionPacket(topic, questionNo) {
     const sourceMode = getDrillSourceMode();
-    if (sourceMode === "official" && topic.id !== "describe") {
-      const officialDetail = buildOfficialQuestionDetail(topic, questionNo);
-      if (officialDetail) {
-        return {
-          format: "five",
-          formatLabel: "原文5択",
-          detail: officialDetail,
-          sourceMode: "official"
-        };
+    if (sourceMode === "official") {
+      const officialPacket = buildOfficialQuestionPacket(topic, questionNo);
+      if (officialPacket) {
+        return officialPacket;
       }
     }
 
     const detail = getQuestionDetail(topic.id, questionNo, false);
     const format = resolveDrillQuestionFormat(topic, detail);
-    const formatLabel = format === "written" ? "記述式" : "5択";
-
+    const formatLabel = format === "written"
+      ? "記述式"
+      : (format === "multi" ? "多肢選択式" : "5択");
     if (format === "five") {
       return {
         format,
@@ -5417,6 +5756,66 @@
     const matched = keywords.filter((token) => inputKey.includes(token));
     const target = Math.min(2, Math.max(1, Math.ceil(keywords.length * 0.25)));
     return matched.length >= target;
+  }
+
+  function judgeMultiDrillAnswer(detail, answerMap) {
+    const correct = detail && detail.multiCorrect && typeof detail.multiCorrect === "object"
+      ? detail.multiCorrect
+      : {};
+    const selected = answerMap && typeof answerMap === "object" ? answerMap : {};
+    const pairs = [
+      ["ア", "a"],
+      ["イ", "i"],
+      ["ウ", "u"],
+      ["エ", "e"]
+    ];
+    for (const [jpKey, localKey] of pairs) {
+      const expected = String(correct[jpKey] || "").trim();
+      const picked = String(selected[localKey] || "").trim();
+      if (!expected || !picked || expected !== picked) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  function getOfficialMultiOptionItems(detail) {
+    const raw = detail && Array.isArray(detail.multiOptions) ? detail.multiOptions : [];
+    const items = [];
+    const seen = new Set();
+    for (const entry of raw) {
+      if (!entry || typeof entry !== "object") {
+        continue;
+      }
+      const no = Math.max(1, Math.round(Number(entry.no) || 0));
+      if (!Number.isFinite(no) || no > 50) {
+        continue;
+      }
+      if (seen.has(no)) {
+        continue;
+      }
+      seen.add(no);
+      const text = String(entry.text || "").trim();
+      const label = text ? `${no}. ${text}` : `${no}.`;
+      items.push({
+        value: String(no),
+        label
+      });
+    }
+    items.sort((a, b) => Number(a.value) - Number(b.value));
+    return items;
+  }
+
+  function buildMultiAnswerCompareLine(detail, answerMap) {
+    const correct = detail && detail.multiCorrect && typeof detail.multiCorrect === "object"
+      ? detail.multiCorrect
+      : {};
+    const selected = answerMap && typeof answerMap === "object"
+      ? answerMap
+      : {};
+    const picked = `ア:${selected.a || "-"} イ:${selected.i || "-"} ウ:${selected.u || "-"} エ:${selected.e || "-"}`;
+    const exact = `ア:${correct["ア"] || "-"} イ:${correct["イ"] || "-"} ウ:${correct["ウ"] || "-"} エ:${correct["エ"] || "-"}`;
+    return `あなたの回答: ${picked} / 正解: ${exact}`;
   }
 
   function buildWrittenKeywords(text) {

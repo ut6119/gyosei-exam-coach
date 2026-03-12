@@ -792,6 +792,27 @@ button.ng {
   margin-bottom: 8px;
 }
 
+#drillMultiWrap {
+  margin-bottom: 8px;
+}
+
+.drillMultiGrid {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px 8px;
+  margin-bottom: 8px;
+  align-items: center;
+}
+
+.drillMultiGrid label {
+  font-weight: 700;
+  color: #1f4f7f;
+}
+
+.drillMultiGrid select {
+  width: 100%;
+}
+
 #drillWrittenInput {
   min-height: 88px;
 }

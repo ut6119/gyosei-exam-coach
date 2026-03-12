@@ -301,6 +301,22 @@
             <p id="drillPrompt" class="questionBox"></p>
             <p id="drillFrequencyLine" class="note"></p>
             <div id="drillChoicesWrap" class="choiceList"></div>
+            <div id="drillMultiWrap" class="hidden">
+              <p class="note">ア〜エに入る番号を選択してください（1〜20）。</p>
+              <div class="drillMultiGrid">
+                <label for="drillMultiA">ア</label>
+                <select id="drillMultiA"></select>
+                <label for="drillMultiI">イ</label>
+                <select id="drillMultiI"></select>
+                <label for="drillMultiU">ウ</label>
+                <select id="drillMultiU"></select>
+                <label for="drillMultiE">エ</label>
+                <select id="drillMultiE"></select>
+              </div>
+              <div class="row">
+                <button id="drillMultiSubmitBtn" type="button">回答を判定</button>
+              </div>
+            </div>
             <div id="drillWrittenWrap" class="hidden">
               <label for="drillWrittenInput">記述回答</label>
               <textarea id="drillWrittenInput" rows="3" placeholder="要点を短く入力"></textarea>
@@ -487,6 +503,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
     <script src="./official-bank.js"></script>
+    <script src="./official-special-bank.js"></script>
     <script src="./app.js"></script>
   </body>
 </html>
