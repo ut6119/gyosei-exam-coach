@@ -12,6 +12,43 @@
   const RESEARCH_UPDATED_AT = "2026-03-07";
   const COMPLETE_BUFFER_DAYS = 7;
   const SECTION_CLEAR_TARGET = 5;
+  const PAST_PUBLIC_YEAR_LABELS = ["H30", "R1", "R2", "R3", "R4", "R5", "R6", "R7"];
+  const PAST_PUBLIC_YEAR_COUNT = PAST_PUBLIC_YEAR_LABELS.length;
+  const FREQUENT_PERCENT_THRESHOLD = 50;
+  const TREND_BASE_HITS_BY_TOPIC = {
+    admin: 6,
+    civil: 5,
+    const_basic: 4,
+    commercial: 5,
+    general: 3,
+    describe: 3
+  };
+  const TREND_STOP_TERMS = new Set([
+    "処分", "請求", "要件", "違法", "行政庁", "会社", "契約", "本人", "保護", "期間",
+    "効力", "無効", "取消し", "憲法", "民法", "条例", "裁判所", "審査", "申請", "地方自治",
+    "国家賠償", "行政手続法", "行政指導", "会社法", "損害", "行政事件訴訟", "記述", "記述式"
+  ]);
+  const PAST8_TERM_HITS = {
+    "3か月": 0, "sns": 3, "パスワード": 0, "リスク": 1, "三権分立": 0, "不作為": 8, "不利益処分": 8,
+    "不利益取扱い": 0, "不服審査": 8, "不服申立て": 5, "主語": 0, "事前規制": 0, "事実評価": 0, "人権": 6,
+    "代理": 7, "代理人": 7, "代表取締役": 2, "代表権": 0, "任意": 6, "会社": 8, "会社機関": 0, "会社法": 8,
+    "会社設立": 0, "住民監査請求": 3, "住民訴訟": 5, "保証債務": 2, "保護": 8, "信教の自由": 0,
+    "個人情報": 8, "債務不履行": 5, "公共の福祉": 5, "公開範囲": 0, "処分": 8, "出資": 7, "初動": 0,
+    "効力": 8, "単位": 1, "双務契約": 1, "取消し": 8, "取消訴訟": 8, "取締役": 8, "取締役会": 7,
+    "合理的区別": 0, "同時履行の抗弁": 1, "善管注意義務": 0, "営造物": 5, "国会": 7, "国家賠償": 8,
+    "国家賠償法1条": 8, "国家賠償法2条": 8, "地方公共団体": 8, "地方自治": 8, "執行停止": 7, "基礎法学": 0,
+    "基礎知識": 0, "失点回避": 0, "契約": 8, "字数指定": 0, "定款": 8, "定款変更": 0, "審査": 8,
+    "審査基準": 6, "審査庁": 7, "審査請求": 8, "審査請求期間": 3, "将来処分": 0, "履行拒絶": 0, "差止訴訟": 2,
+    "帰属": 4, "平等原則": 1, "強制処分": 0, "強制力": 0, "当てはめ": 0, "情報セキュリティ": 0,
+    "意思表示": 6, "憲法": 8, "手続保障": 0, "承諾": 8, "採点条件": 0, "損害": 8, "損害賠償": 7,
+    "政教分離": 0, "教示": 4, "文章理解": 0, "時事": 0, "時間配分": 0, "更新確認": 0, "有限責任": 0,
+    "期限": 4, "株主": 8, "株主総会": 8, "検閲": 3, "業務執行": 2, "民主主義": 4, "法令名": 0,
+    "漏えい対応": 0, "無効等確認訴訟": 2, "特別決議": 1, "理由提示": 0, "瑕疵": 8, "申込み": 6,
+    "監督": 7, "相当期間": 2, "結論": 3, "義務付け訴訟": 3, "聴聞": 7, "表現の自由": 6, "裁決": 8,
+    "裁量": 8, "要件事実": 3, "要件漏れ": 0, "見直し": 1, "規範": 4, "記述答案": 0, "設問先読み": 0,
+    "訴訟類型": 1, "識別": 5, "資料読解": 0, "連帯保証": 1, "逸脱濫用": 0, "違憲審査": 1, "重大明白": 0,
+    "錯誤": 1
+  };
   const FOCUS_TABS = ["home", "today", "primer", "drill"];
   const FOCUS_TAB_TARGETS = {
     home: ["dashboardCard", "homeCard"],
@@ -4570,6 +4607,7 @@
       byId("drillProgress").textContent = "";
       byId("drillQuestion").textContent = "";
       byId("drillPrompt").textContent = "";
+      byId("drillFrequencyLine").textContent = "";
       choicesWrap.innerHTML = "";
       choicesWrap.classList.remove("hidden");
       writtenWrap.classList.add("hidden");
@@ -4623,6 +4661,10 @@
     }
 
     byId("drillPrompt").textContent = buildDrillPromptText(detail.prompt, formatLabel);
+    const trendStats = estimateQuestionTrendStats(current.topic.id, detail);
+    byId("drillFrequencyLine").textContent =
+      `過去10年目標分析（公開${PAST_PUBLIC_YEAR_COUNT}年）出題率: ${trendStats.percent}% (${trendStats.hits}/${trendStats.years}年)` +
+      (trendStats.topToken ? ` / 頻出語: ${trendStats.topToken}` : "");
     const showResult = state.drill.showExplanation && typeof state.drill.pendingResult === "boolean";
     const isWritten = format === "written";
 
@@ -5678,7 +5720,19 @@
   function getPastLikeChoiceBank(topicId) {
     const base = Array.isArray(PAST5_CHOICE_BANK[topicId]) ? PAST5_CHOICE_BANK[topicId] : [];
     const extra = Array.isArray(EXTRA_CHOICE_BANK_BY_TOPIC[topicId]) ? EXTRA_CHOICE_BANK_BY_TOPIC[topicId] : [];
-    return [...base, ...extra];
+    const merged = [...base, ...extra];
+    if (merged.length === 0) {
+      return merged;
+    }
+
+    const filtered = merged.filter((entry) => {
+      const stats = estimateQuestionTrendStats(topicId, normalizeQuestion(entry));
+      return stats.percent >= FREQUENT_PERCENT_THRESHOLD;
+    });
+    if (filtered.length >= Math.min(8, merged.length)) {
+      return filtered;
+    }
+    return filtered.length > 0 ? filtered : merged;
   }
 
   function getForecastChoiceBank(topicId) {
@@ -5704,9 +5758,6 @@
     }
     if (pastLike.length === 0) {
       return forecast;
-    }
-    if (shouldUseForecastChoice(topicId, questionNo)) {
-      return forecast.length > 0 ? forecast : pastLike;
     }
     return pastLike;
   }
@@ -5961,6 +6012,83 @@
       .replace(/[「」『』【】（）()［］\[\]{}]/gu, "")
       .replace(/[、。・,.:：!?！？\s]/gu, "")
       .toLowerCase();
+  }
+
+  function getPastHitByToken(token) {
+    const key = normalizeKeyText(token);
+    if (!key) {
+      return 0;
+    }
+    if (Object.prototype.hasOwnProperty.call(PAST8_TERM_HITS, key)) {
+      return Math.max(0, Math.round(Number(PAST8_TERM_HITS[key]) || 0));
+    }
+
+    let best = 0;
+    for (const mapKey of Object.keys(PAST8_TERM_HITS)) {
+      if (key.includes(mapKey) || mapKey.includes(key)) {
+        best = Math.max(best, Math.round(Number(PAST8_TERM_HITS[mapKey]) || 0));
+      }
+    }
+    return best;
+  }
+
+  function estimateQuestionTrendStats(topicId, detail) {
+    const baseHits = Math.max(1, Math.round(Number(TREND_BASE_HITS_BY_TOPIC[topicId]) || 4));
+    const tokens = [];
+    const addTokens = (value) => {
+      const parts = String(value || "")
+        .split(/[\s、。,:：;；!?！？・\/\-\n]+/u)
+        .map((piece) => piece.trim())
+        .filter((piece) => piece.length >= 2);
+      tokens.push(...parts);
+    };
+
+    if (Array.isArray(detail && detail.terms)) {
+      tokens.push(...detail.terms.map((term) => String(term || "").trim()).filter(Boolean));
+    }
+    addTokens(detail && detail.prompt);
+    addTokens(detail && detail.answer);
+    addTokens(detail && detail.explanation);
+
+    const seen = new Set();
+    const scored = [];
+    for (const token of tokens) {
+      const key = normalizeKeyText(token);
+      if (!key || seen.has(key)) {
+        continue;
+      }
+      seen.add(key);
+      if (TREND_STOP_TERMS.has(token) || TREND_STOP_TERMS.has(key)) {
+        continue;
+      }
+      const hits = getPastHitByToken(token);
+      if (hits > 0) {
+        scored.push({ token, hits });
+      }
+    }
+
+    if (scored.length === 0) {
+      const percent = Math.round((baseHits / PAST_PUBLIC_YEAR_COUNT) * 100);
+      return {
+        hits: baseHits,
+        years: PAST_PUBLIC_YEAR_COUNT,
+        percent,
+        topToken: ""
+      };
+    }
+
+    scored.sort((a, b) => b.hits - a.hits);
+    const top = scored.slice(0, 3);
+    const avgHits = Math.round(top.reduce((sum, item) => sum + item.hits, 0) / top.length);
+    const hits = Math.max(1, Math.min(PAST_PUBLIC_YEAR_COUNT, avgHits));
+    const percent = Math.round((hits / PAST_PUBLIC_YEAR_COUNT) * 100);
+
+    return {
+      hits,
+      years: PAST_PUBLIC_YEAR_COUNT,
+      percent,
+      topToken: String(top[0] && top[0].token || "")
+    };
   }
 
   function buildBankPermutation(topicId, length) {
