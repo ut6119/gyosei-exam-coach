@@ -4779,6 +4779,8 @@
       if (sourceLabel) {
         frequencyLine += ` / 出典: ${sourceLabel}`;
       }
+      const focus = getOfficialFocusProfile();
+      frequencyLine += ` / ${focus.label}`;
     }
     byId("drillFrequencyLine").textContent = frequencyLine;
     const showResult = state.drill.showExplanation && typeof state.drill.pendingResult === "boolean";
@@ -5684,12 +5686,69 @@
     return ranked;
   }
 
-  function pickOfficialFocusedEntry(pool, seedKey, questionNo) {
+  function getOfficialFocusProfile() {
+    const daysLeft = Math.max(0, getDaysUntilCompleteDate());
+    const phase = phaseByDays(daysLeft);
+    const accuracy = getOverallQuestionAccuracyPercent();
+
+    let rate = 0.45;
+    let minPool = 6;
+    let label = "頻出上位45%";
+
+    if (phase.key === "final") {
+      rate = 0.60;
+      minPool = 8;
+      label = "頻出上位60%（仕上げ期）";
+    } else if (phase.key === "loop" && accuracy >= 85) {
+      rate = 0.60;
+      minPool = 8;
+      label = "頻出上位60%（正答率85%以上）";
+    } else if (phase.key === "loop" && (accuracy >= 75 || daysLeft <= 60)) {
+      rate = 0.55;
+      minPool = 7;
+      label = "頻出上位55%（周回強化）";
+    }
+
+    return {
+      rate,
+      minPool,
+      accuracy,
+      phaseKey: phase.key,
+      label
+    };
+  }
+
+  function getOverallQuestionAccuracyPercent() {
+    let attempts = 0;
+    let correct = 0;
+    const root = state.questionStats && typeof state.questionStats === "object"
+      ? state.questionStats
+      : {};
+    for (const topicId of Object.keys(root)) {
+      const topicStats = root[topicId];
+      if (!topicStats || typeof topicStats !== "object") {
+        continue;
+      }
+      for (const key of Object.keys(topicStats)) {
+        const stat = normalizeQuestionStat(topicStats[key]);
+        attempts += stat.attempts;
+        correct += stat.correct;
+      }
+    }
+    if (attempts <= 0) {
+      return 0;
+    }
+    return Math.round((correct / attempts) * 100);
+  }
+
+  function pickOfficialFocusedEntry(pool, seedKey, questionNo, focusRate, minFocusCount) {
     if (!Array.isArray(pool) || pool.length === 0) {
       return null;
     }
-    const minFocus = Math.min(pool.length, 6);
-    const byRate = Math.ceil(pool.length * 0.45);
+    const safeRate = Math.max(0.2, Math.min(1, Number(focusRate) || 0.45));
+    const safeMin = Math.max(1, Math.round(Number(minFocusCount) || 6));
+    const minFocus = Math.min(pool.length, safeMin);
+    const byRate = Math.ceil(pool.length * safeRate);
     const focusSize = Math.max(minFocus, Math.min(pool.length, byRate));
     const focusPool = pool.slice(0, focusSize);
     return pickOfficialQuestionEntryFromPool(focusPool, `${seedKey}:focus`, questionNo)
@@ -5697,6 +5756,7 @@
   }
 
   function buildOfficialQuestionPacket(topic, questionNo) {
+    const focus = getOfficialFocusProfile();
     const fivePool = getOfficialRankedPoolForTopic(topic.id, "five");
     const multiPool = getOfficialRankedPoolForTopic(topic.id, "multi");
     const writtenPool = getOfficialRankedPoolForTopic(topic.id, "written");
@@ -5707,7 +5767,7 @@
       if (pool.length === 0) {
         return null;
       }
-      const picked = pickOfficialFocusedEntry(pool, `${topic.id}:official:${format}`, safeNo);
+      const picked = pickOfficialFocusedEntry(pool, `${topic.id}:official:${format}`, safeNo, focus.rate, focus.minPool);
       if (!picked) {
         return null;
       }
@@ -5732,7 +5792,7 @@
       }
       const globalWritten = getOfficialRankedGlobalSpecialPool("written");
       if (globalWritten.length > 0) {
-        const picked = pickOfficialFocusedEntry(globalWritten, "describe:official:written", safeNo);
+        const picked = pickOfficialFocusedEntry(globalWritten, "describe:official:written", safeNo, focus.rate, focus.minPool);
         const detail = buildOfficialWrittenDetail(picked);
         if (detail) {
           return {
@@ -5761,7 +5821,7 @@
       }
     }
 
-    const pickedFive = pickOfficialFocusedEntry(fivePool, `${topic.id}:official:five`, safeNo);
+    const pickedFive = pickOfficialFocusedEntry(fivePool, `${topic.id}:official:five`, safeNo, focus.rate, focus.minPool);
     const fiveDetail = buildOfficialFiveChoiceDetail(pickedFive);
     if (fiveDetail) {
       return {
