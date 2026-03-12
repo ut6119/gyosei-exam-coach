@@ -1297,6 +1297,7 @@
   let clockTimerId = null;
   let lastClockDate = "";
   const bankPickSequenceCache = new Map();
+  const officialRankPoolCache = new Map();
   let globalBankOccurrenceCacheKey = "";
   let globalBankOccurrenceMap = new Map();
   let syncBusy = false;
@@ -5554,11 +5555,151 @@
     };
   }
 
+  function tokenizeOfficialTrendText(text) {
+    return String(text || "")
+      .split(/[\s、。,:：;；!?！？・\/\-\n「」『』（）()［］\[\]{}]+/u)
+      .map((part) => String(part || "").trim())
+      .filter((part) => part.length >= 2);
+  }
+
+  function scoreOfficialEntryFrequency(topicId, entry, detail) {
+    const base = Math.max(1, Math.round(Number(TREND_BASE_HITS_BY_TOPIC[topicId]) || 4));
+    const tokens = [];
+    tokens.push(...tokenizeOfficialTrendText(entry && entry.prompt));
+    tokens.push(...tokenizeOfficialTrendText(detail && detail.answer));
+    tokens.push(...tokenizeOfficialTrendText(detail && detail.explanation));
+
+    if (Array.isArray(entry && entry.choices)) {
+      for (const choice of entry.choices) {
+        tokens.push(...tokenizeOfficialTrendText(choice));
+      }
+    }
+    if (Array.isArray(entry && entry.multiOptions)) {
+      for (const option of entry.multiOptions) {
+        tokens.push(...tokenizeOfficialTrendText(option && option.text));
+      }
+    }
+    if (Array.isArray(detail && detail.terms)) {
+      for (const term of detail.terms) {
+        tokens.push(String(term || "").trim());
+      }
+    }
+
+    const seen = new Set();
+    const hits = [];
+    for (const token of tokens) {
+      const key = normalizeKeyText(token);
+      if (!key || seen.has(key)) {
+        continue;
+      }
+      seen.add(key);
+      if (TREND_STOP_TERMS.has(token) || TREND_STOP_TERMS.has(key)) {
+        continue;
+      }
+      const hit = getPastHitByToken(token);
+      if (hit > 0) {
+        hits.push(hit);
+      }
+    }
+
+    if (hits.length === 0) {
+      return base;
+    }
+    hits.sort((a, b) => b - a);
+    const top = hits.slice(0, 4);
+    const avg = Math.round(top.reduce((sum, value) => sum + value, 0) / top.length);
+    return Math.max(1, Math.min(PAST_PUBLIC_YEAR_COUNT, avg));
+  }
+
+  function parseOfficialYearLabelToAbsolute(yearLabel) {
+    const text = String(yearLabel || "").trim();
+    const r = text.match(/^R(\d{1,2})$/u);
+    if (r) {
+      return 2018 + Number(r[1]);
+    }
+    const h = text.match(/^H(\d{1,2})$/u);
+    if (h) {
+      return 1988 + Number(h[1]);
+    }
+    return 0;
+  }
+
+  function buildOfficialRankedPool(rawPool, format, topicIdForScore) {
+    const scored = [];
+    for (const entry of rawPool) {
+      if (!entry || typeof entry !== "object") {
+        continue;
+      }
+      const detail = format === "five"
+        ? buildOfficialFiveChoiceDetail(entry)
+        : (format === "multi" ? buildOfficialMultiDetail(entry) : buildOfficialWrittenDetail(entry));
+      if (!detail) {
+        continue;
+      }
+      const topicId = String(entry.topicId || topicIdForScore || "");
+      const score = scoreOfficialEntryFrequency(topicId, entry, detail);
+      const year = parseOfficialYearLabelToAbsolute(entry.yearLabel);
+      const questionNo = Math.max(1, Math.round(Number(entry.questionNo) || 1));
+      scored.push({
+        entry,
+        score,
+        year,
+        questionNo
+      });
+    }
+
+    scored.sort((a, b) => {
+      if (b.score !== a.score) {
+        return b.score - a.score;
+      }
+      if (b.year !== a.year) {
+        return b.year - a.year;
+      }
+      return a.questionNo - b.questionNo;
+    });
+    return scored.map((item) => item.entry);
+  }
+
+  function getOfficialRankedPoolForTopic(topicId, format) {
+    const key = `topic:${topicId}:${format}`;
+    if (officialRankPoolCache.has(key)) {
+      return officialRankPoolCache.get(key);
+    }
+    const rawPool = format === "five"
+      ? getOfficialTopicPool(topicId)
+      : getOfficialSpecialTopicPool(topicId).filter((item) => String(item && item.format || "").trim() === format);
+    const ranked = buildOfficialRankedPool(rawPool, format, topicId);
+    officialRankPoolCache.set(key, ranked);
+    return ranked;
+  }
+
+  function getOfficialRankedGlobalSpecialPool(format) {
+    const key = `global:${format}`;
+    if (officialRankPoolCache.has(key)) {
+      return officialRankPoolCache.get(key);
+    }
+    const rawPool = getOfficialSpecialGlobalPool(format);
+    const ranked = buildOfficialRankedPool(rawPool, format, "");
+    officialRankPoolCache.set(key, ranked);
+    return ranked;
+  }
+
+  function pickOfficialFocusedEntry(pool, seedKey, questionNo) {
+    if (!Array.isArray(pool) || pool.length === 0) {
+      return null;
+    }
+    const minFocus = Math.min(pool.length, 6);
+    const byRate = Math.ceil(pool.length * 0.45);
+    const focusSize = Math.max(minFocus, Math.min(pool.length, byRate));
+    const focusPool = pool.slice(0, focusSize);
+    return pickOfficialQuestionEntryFromPool(focusPool, `${seedKey}:focus`, questionNo)
+      || pickOfficialQuestionEntryFromPool(pool, `${seedKey}:all`, questionNo);
+  }
+
   function buildOfficialQuestionPacket(topic, questionNo) {
-    const fivePool = getOfficialTopicPool(topic.id);
-    const specialPool = getOfficialSpecialTopicPool(topic.id);
-    const multiPool = specialPool.filter((item) => String(item && item.format || "").trim() === "multi");
-    const writtenPool = specialPool.filter((item) => String(item && item.format || "").trim() === "written");
+    const fivePool = getOfficialRankedPoolForTopic(topic.id, "five");
+    const multiPool = getOfficialRankedPoolForTopic(topic.id, "multi");
+    const writtenPool = getOfficialRankedPoolForTopic(topic.id, "written");
     const safeNo = Math.max(1, Math.round(Number(questionNo) || 1));
 
     const pickSpecial = (format) => {
@@ -5566,7 +5707,7 @@
       if (pool.length === 0) {
         return null;
       }
-      const picked = pickOfficialQuestionEntryFromPool(pool, `${topic.id}:official:${format}`, safeNo);
+      const picked = pickOfficialFocusedEntry(pool, `${topic.id}:official:${format}`, safeNo);
       if (!picked) {
         return null;
       }
@@ -5589,9 +5730,9 @@
       if (packet) {
         return packet;
       }
-      const globalWritten = getOfficialSpecialGlobalPool("written");
+      const globalWritten = getOfficialRankedGlobalSpecialPool("written");
       if (globalWritten.length > 0) {
-        const picked = pickOfficialQuestionEntryFromPool(globalWritten, "describe:official:written", safeNo);
+        const picked = pickOfficialFocusedEntry(globalWritten, "describe:official:written", safeNo);
         const detail = buildOfficialWrittenDetail(picked);
         if (detail) {
           return {
@@ -5620,7 +5761,7 @@
       }
     }
 
-    const pickedFive = pickOfficialQuestionEntryFromPool(fivePool, `${topic.id}:official:five`, safeNo);
+    const pickedFive = pickOfficialFocusedEntry(fivePool, `${topic.id}:official:five`, safeNo);
     const fiveDetail = buildOfficialFiveChoiceDetail(pickedFive);
     if (fiveDetail) {
       return {
