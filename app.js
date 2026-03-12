@@ -27,7 +27,7 @@
     drillCard: "drill"
   };
 
-  const OFFICIAL_SPEC_TEXT = "公式情報ベース: 試験時間180分(13:00-16:00) / 出題60問(法令等46問+基礎知識14問) / 合格基準: 法令等122点以上・基礎知識24点以上・総得点180点以上";
+  const OFFICIAL_SPEC_TEXT = "公式情報ベース: 試験時間180分(13:00-16:00) / 出題60問(法令等46問+基礎知識14問) / 形式: 主に5肢択一式（他に多肢選択式・記述式） / 合格基準: 法令等122点以上・基礎知識24点以上・総得点180点以上";
 
   const RESEARCH_SOURCES = [
     {
@@ -2795,7 +2795,7 @@
       correctCount: 0,
       wrongCount: 0,
       startedAt: today,
-      message: "ドリル開始。3択を選んで解説を確認しながら進めます。",
+      message: "ドリル開始。学習3択を選んで解説を確認しながら進めます。",
       showExplanation: false,
       selectedChoice: -1,
       pendingResult: null,
@@ -3096,7 +3096,7 @@
     }
 
     if (!state.drill.showExplanation) {
-      state.drill.message = "先に3択から1つ選んでください。";
+      state.drill.message = "先に学習3択から1つ選んでください。";
       saveState();
       renderDrill();
       return;
@@ -4606,7 +4606,7 @@
     byId("drillExplanationLine").textContent = "";
     byId("drillPitfallLine").textContent = "";
     byId("drillTermsLine").textContent = "";
-    byId("drillMessage").textContent = state.drill.message || "3択から1つ選んでください。";
+    byId("drillMessage").textContent = state.drill.message || "学習3択から1つ選んでください。";
   }
 
   function renderQuestionEditor() {
@@ -4677,7 +4677,7 @@
     byId("miniTestQuestionHead").textContent = `小テスト / ${topic.name} Q${item.questionNo}`;
     byId("miniTestQuestionPrompt").textContent = buildExamStylePrompt(topic, detail, "小テスト");
     byId("miniTestChoicesWrap").innerHTML = buildExamChoicesHtml(detail.choices);
-    byId("miniTestMessage").textContent = state.miniTest.message || "3択を選択してください。";
+    byId("miniTestMessage").textContent = state.miniTest.message || "学習3択を選択してください。";
   }
 
   function renderMockExam() {
@@ -4721,7 +4721,7 @@
     byId("mockQuestionHead").textContent = `${item.format} / ${topic.name} Q${item.questionNo} / ${item.points}点`;
     byId("mockQuestionPrompt").textContent = buildExamStylePrompt(topic, detail, "模試");
     byId("mockChoicesWrap").innerHTML = buildExamChoicesHtml(detail.choices);
-    byId("mockQuestionExplain").textContent = "本番風の書き方で出題中。3択を選択してください。";
+    byId("mockQuestionExplain").textContent = "本番風の文体で出題中（学習モードは3択）。";
     byId("mockMessage").textContent = state.mock.message || "";
   }
 
@@ -5104,12 +5104,12 @@
     const bank = resolveAutoChoiceBank(topic.id, safeQuestionNo);
     if (Array.isArray(bank) && bank.length > 0) {
       const picked = pickBankQuestionByNo(topic, bank, safeQuestionNo);
-      const withVariant = applyGlobalUniquenessVariant(topic, safeQuestionNo, picked.entry);
-      return normalizeQuestion({
-        ...withVariant,
-        prompt: toExamLikeDrillPrompt(withVariant.prompt, topic),
-        trendTag: withVariant.trendTag || PAST5_TREND_BY_TOPIC[topic.id] || ""
+      const base = normalizeQuestion({
+        ...picked.entry,
+        prompt: toExamLikeDrillPrompt(picked.entry && picked.entry.prompt || "", topic),
+        trendTag: picked.entry && picked.entry.trendTag || PAST5_TREND_BY_TOPIC[topic.id] || ""
       });
+      return buildPastLikeChoiceSet(topic, safeQuestionNo, base, bank);
     }
 
     const textbook = getTopicTextbook(topic);
@@ -5131,6 +5131,115 @@
       terms: defaultTermsForTopic(topic),
       trendTag: PAST5_TREND_BY_TOPIC[topic.id] || "過去5年傾向に合わせた基礎問題"
     });
+  }
+
+  function buildPastLikeChoiceSet(topic, questionNo, detail, bank) {
+    const safe = normalizeQuestion(detail);
+    if (!hasCompleteChoices(safe.choices)) {
+      return safe;
+    }
+
+    const correctText = String(safe.choices[safe.correctIndex] || "").trim();
+    if (!correctText) {
+      return safe;
+    }
+
+    const pool = buildTopicDistractorPool(bank, correctText);
+    if (pool.length < 2) {
+      return safe;
+    }
+
+    const distractors = pickTopicDistractors(pool, correctText, 2, `${topic.id}:${questionNo}:d`);
+    if (distractors.length < 2) {
+      return safe;
+    }
+
+    const baseChoices = [correctText, distractors[0], distractors[1]];
+    const order = buildDeterministicOrder(baseChoices.length, `${topic.id}:${questionNo}:o`);
+    const shuffled = order.map((idx) => baseChoices[idx]);
+    const nextCorrectIndex = order.indexOf(0);
+
+    return normalizeQuestion({
+      ...safe,
+      choices: shuffled,
+      correctIndex: nextCorrectIndex
+    });
+  }
+
+  function buildTopicDistractorPool(bank, correctText) {
+    if (!Array.isArray(bank) || bank.length === 0) {
+      return [];
+    }
+
+    const correctKey = normalizeKeyText(correctText);
+    const seen = new Set();
+    const pool = [];
+
+    for (const rawEntry of bank) {
+      const entry = normalizeQuestion(rawEntry);
+      for (const rawChoice of entry.choices) {
+        const choice = String(rawChoice || "").trim();
+        if (!choice) {
+          continue;
+        }
+        const key = normalizeKeyText(choice);
+        if (!key || key === correctKey || seen.has(key)) {
+          continue;
+        }
+        seen.add(key);
+        pool.push(choice);
+      }
+    }
+
+    return pool;
+  }
+
+  function pickTopicDistractors(pool, correctText, count, seedText) {
+    const correctLen = Math.max(1, String(correctText || "").trim().length);
+    const ranked = pool
+      .map((choice) => {
+        const len = Math.max(1, String(choice || "").trim().length);
+        return {
+          choice,
+          score: Math.abs(len - correctLen)
+        };
+      })
+      .sort((a, b) => a.score - b.score || String(a.choice).localeCompare(String(b.choice), "ja"));
+
+    const shortlist = ranked.slice(0, Math.max(count + 4, 8)).map((item) => item.choice);
+    const picked = [];
+    let seed = seedFromString(seedText);
+    const source = shortlist.length >= count ? shortlist : pool.slice();
+
+    while (picked.length < count && source.length > 0) {
+      seed = nextDeterministicSeed(seed);
+      const index = seed % source.length;
+      picked.push(source[index]);
+      source.splice(index, 1);
+    }
+
+    return picked;
+  }
+
+  function buildDeterministicOrder(length, seedText) {
+    const order = [];
+    for (let i = 0; i < length; i += 1) {
+      order.push(i);
+    }
+    let seed = seedFromString(seedText);
+    for (let i = order.length - 1; i > 0; i -= 1) {
+      seed = nextDeterministicSeed(seed);
+      const j = seed % (i + 1);
+      const tmp = order[i];
+      order[i] = order[j];
+      order[j] = tmp;
+    }
+    return order;
+  }
+
+  function nextDeterministicSeed(seed) {
+    const base = Math.max(1, Math.round(Number(seed) || 1));
+    return (base * 48271) % 2147483647;
   }
 
   function toExamLikeDrillPrompt(rawPrompt, topic) {
