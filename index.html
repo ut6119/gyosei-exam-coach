@@ -334,7 +334,6 @@
               <p id="drillEasyLine" class="note"></p>
               <p id="drillExplanationLine" class="note"></p>
               <p id="drillPitfallLine" class="note"></p>
-              <p id="drillTermsLine" class="note"></p>
             </details>
             <div class="row">
               <button id="skipBtn" type="button">スキップ</button>
@@ -364,7 +363,7 @@
 
       <section class="card" id="questionEditorCard">
         <h2>13. 問題と解説の登録</h2>
-        <p class="note">各問いに「問題文・解説・間違えやすい点・関連用語」を保存できます。</p>
+        <p class="note">各問いに「問題文・解説・間違えやすい点」を保存できます。</p>
         <div class="row">
           <label for="questionTopicSelect">分野</label>
           <select id="questionTopicSelect"></select>
@@ -414,10 +413,6 @@
         <div class="row stacked">
           <label for="questionPitfallInput">間違えやすい点</label>
           <textarea id="questionPitfallInput" rows="2"></textarea>
-        </div>
-        <div class="row stacked">
-          <label for="questionTermsInput">関連用語(カンマ区切り)</label>
-          <input id="questionTermsInput" type="text" />
         </div>
         <button id="saveQuestionBtn" type="button">この問いを保存</button>
         <p id="questionEditorMessage" class="note"></p>

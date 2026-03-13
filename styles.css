@@ -908,7 +908,7 @@ button.ng {
 
 .choiceBtn {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
   text-align: left;
@@ -923,6 +923,8 @@ button.ng {
 
 .choiceText {
   flex: 1 1 auto;
+  white-space: pre-wrap;
+  line-height: 1.45;
 }
 
 .choiceMark {

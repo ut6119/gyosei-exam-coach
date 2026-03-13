@@ -1452,6 +1452,7 @@
         dailyMinutes: 120,
         targetPerfectRounds: 2,
         todayQuestionOverride: "",
+        todayQuestionOverrideDate: "",
         mockDurationMinutes: 180,
         drillSourceMode: "official"
       },
@@ -1588,12 +1589,18 @@
     state.settings.targetPerfectRounds = clampNumber(state.settings.targetPerfectRounds, 1, 10, 2);
     state.settings.mockDurationMinutes = clampNumber(state.settings.mockDurationMinutes, 60, 240, 180);
     state.settings.drillSourceMode = normalizeDrillSourceMode(state.settings.drillSourceMode);
+    state.settings.todayQuestionOverrideDate = isISODate(state.settings.todayQuestionOverrideDate)
+      ? state.settings.todayQuestionOverrideDate
+      : "";
 
     if (state.settings.todayQuestionOverride !== "") {
       const override = Number(state.settings.todayQuestionOverride);
       state.settings.todayQuestionOverride = Number.isFinite(override) && override > 0
         ? String(Math.round(override))
         : "";
+    }
+    if (state.settings.todayQuestionOverride === "") {
+      state.settings.todayQuestionOverrideDate = "";
     }
 
     if (!Array.isArray(state.todayPlan.tasks)) {
@@ -1957,6 +1964,28 @@
     state.questionStats[topicId][key] = current;
   }
 
+  function invalidateDrillQueueQuestionCache(topicId) {
+    const safeTopicId = String(topicId || "");
+    if (!safeTopicId || !Array.isArray(state.drill.queue) || state.drill.queue.length === 0) {
+      return;
+    }
+
+    const startIndex = state.drill.active
+      ? Math.max(0, Math.min(state.drill.queue.length - 1, Math.round(Number(state.drill.pointer) || 0)))
+      : 0;
+
+    for (let i = startIndex; i < state.drill.queue.length; i += 1) {
+      const item = state.drill.queue[i];
+      if (!item || typeof item !== "object") {
+        continue;
+      }
+      if (String(item.topicId || "") !== safeTopicId) {
+        continue;
+      }
+      item.questionNo = 0;
+    }
+  }
+
   function resetTopicProgress(topicId) {
     const topic = state.topics.find((entry) => entry.id === topicId);
     if (!topic) {
@@ -1964,6 +1993,7 @@
     }
     state.progress[topicId] = defaultProgress();
     state.questionStats[topicId] = {};
+    invalidateDrillQueueQuestionCache(topicId);
     state.todayPlan = { date: "", tasks: [] };
     state.trainingCycle.pendingMiniTest = false;
     state.trainingCycle.sectionClearsSinceMiniTest = 0;
@@ -1972,7 +2002,8 @@
     }
   }
 
-  function resetSectionProgress(topicId, sectionIndex) {
+  function resetSectionProgress(topicId, sectionIndex, options = {}) {
+    const keepTodayPlan = Boolean(options.keepTodayPlan);
     const topic = state.topics.find((entry) => entry.id === topicId);
     if (!topic) {
       return;
@@ -1989,6 +2020,7 @@
     progress.mastered = false;
     progress.nextQuestion = section.start;
     state.progress[topicId] = normalizeProgress(topic, progress);
+    invalidateDrillQueueQuestionCache(topicId);
 
     if (!state.questionStats[topicId] || typeof state.questionStats[topicId] !== "object") {
       state.questionStats[topicId] = {};
@@ -1998,7 +2030,9 @@
       delete stats[String(questionNo)];
     }
 
-    state.todayPlan = { date: "", tasks: [] };
+    if (!keepTodayPlan) {
+      state.todayPlan = { date: "", tasks: [] };
+    }
     state.trainingCycle.pendingMiniTest = false;
     state.trainingCycle.sectionClearsSinceMiniTest = 0;
   }
@@ -2196,12 +2230,14 @@
     state.settings.dailyMinutes = dailyMinutes;
     state.settings.targetPerfectRounds = targetPerfectRounds;
     state.settings.todayQuestionOverride = "";
+    state.settings.todayQuestionOverrideDate = "";
     state.settings.drillSourceMode = drillSourceMode;
 
     if (overrideRaw !== "") {
       const override = Number(overrideRaw);
       if (Number.isFinite(override) && override > 0) {
         state.settings.todayQuestionOverride = String(Math.round(override));
+        state.settings.todayQuestionOverrideDate = todayISO();
       }
     }
 
@@ -2688,7 +2724,7 @@
       if (!confirm("このセクションの進捗をリセットします。よろしいですか？")) {
         return;
       }
-      resetSectionProgress(topicId, sectionIndex);
+      resetSectionProgress(topicId, sectionIndex, { keepTodayPlan: state.drill.active });
       saveState();
       renderAll();
     }
@@ -3111,7 +3147,12 @@
     if (!confirm(`${current.topic.name} ${section.name} の進捗をリセットしますか？`)) {
       return;
     }
-    resetSectionProgress(current.topic.id, section.index);
+    resetSectionProgress(current.topic.id, section.index, { keepTodayPlan: true });
+    state.drill.showExplanation = false;
+    state.drill.selectedChoice = -1;
+    state.drill.pendingResult = null;
+    state.drill.writtenAnswer = "";
+    state.drill.multiAnswer = { a: "", i: "", u: "", e: "" };
     state.drill.message = `${current.topic.name} ${section.name} の進捗をリセットしました。`;
     saveState();
     renderAll();
@@ -3240,7 +3281,7 @@
     if (!confirm(`${current.topic.name} ${section.name} の進捗をリセットしますか？`)) {
       return;
     }
-    resetSectionProgress(current.topic.id, section.index);
+    resetSectionProgress(current.topic.id, section.index, { keepTodayPlan: state.drill.active });
     state.singlePractice.message = `${current.topic.name} ${section.name} の進捗をリセットしました。`;
     saveState();
     renderAll();
@@ -3464,6 +3505,7 @@
       ? correctIndexRaw
       : 0;
 
+    const termsInput = document.getElementById("questionTermsInput");
     const detail = {
       prompt: byId("questionPromptInput").value.trim(),
       choices: drillFormat === "written" ? choices.filter(Boolean) : choices,
@@ -3472,7 +3514,7 @@
       answer: byId("questionAnswerInput").value.trim(),
       explanation: byId("questionExplanationInput").value.trim(),
       pitfall: byId("questionPitfallInput").value.trim(),
-      terms: parseTerms(byId("questionTermsInput").value),
+      terms: termsInput ? parseTerms(termsInput.value) : [],
       trendTag: PAST5_TREND_BY_TOPIC[topicId] || ""
     };
 
@@ -3966,6 +4008,11 @@
   }
 
   function renderAll() {
+    if (clearExpiredTodayQuestionOverride()) {
+      state.todayPlan = { date: "", tasks: [] };
+      saveState();
+    }
+
     const today = todayISO();
     if (state.todayPlan.date !== today || state.todayPlan.tasks.length === 0) {
       generateTodayPlan(false);
@@ -4085,6 +4132,7 @@
     const dailyTarget = getDailyTargetCount();
     const remainingQuestions = getRemainingUniqueQuestions();
     const solvedQuestions = getSolvedUniqueQuestions();
+    const todayDoneCount = getTodayDoneCount();
     const totalQuestions = remainingQuestions + solvedQuestions;
     const scheduleDays = Math.max(1, completeDaysLeft);
     const needPerDay = remainingQuestions > 0 ? Math.ceil(remainingQuestions / scheduleDays) : 0;
@@ -4097,37 +4145,49 @@
     byId("dailyTarget").textContent = `${dailyTarget}問`;
     byId("needPerDayLine").textContent = `残り${remainingQuestions}問 ÷ ${scheduleDays}日 = ${needPerDay}問/日`;
     byId("capacityPerDayLine").textContent = `${targetPerDay}問/日`;
-    byId("forecastLine").textContent = `今の設定なら ${forecastDays}日で消化見込み`;
+    byId("forecastLine").textContent = `今の設定なら ${forecastDays}日で消化見込み / 今日実績 ${todayDoneCount}問`;
 
     let deltaText = "ぴったり";
-    let paceTone = "isGood";
     if (paceGap < 0) {
       deltaText = `${Math.abs(paceGap)}問/日 不足`;
-      paceTone = "isBad";
     } else if (paceGap === 0) {
       deltaText = "ちょうど必要量";
-      paceTone = "isWarn";
     } else {
       deltaText = `${paceGap}問/日 余裕`;
-      paceTone = paceGap >= 5 ? "isGood" : "isWarn";
     }
     byId("paceDeltaLine").textContent = deltaText;
 
     setGauge("overallProgressGaugeFill", "overallProgressGaugeLabel", solvedQuestions, totalQuestions, "未設定");
-    const paceTotal = Math.max(needPerDay, targetPerDay, 1);
-    const pacePercent = setGauge("paceGaugeFill", "paceGaugeLabel", targetPerDay, paceTotal, "未設定");
+    let paceProgressTone = "isWarn";
+    if (needPerDay <= 0) {
+      setGauge("paceGaugeFill", "paceGaugeLabel", 1, 1, "完了");
+      paceProgressTone = "isGood";
+    } else {
+      setGauge("paceGaugeFill", "paceGaugeLabel", todayDoneCount, needPerDay, "未設定");
+    }
+    if (needPerDay > 0 && todayDoneCount >= needPerDay) {
+      paceProgressTone = "isGood";
+    } else if (paceGap < 0) {
+      paceProgressTone = "isBad";
+    }
     setProgressFillTone("overallProgressGaugeFill", totalQuestions > 0 && solvedQuestions >= totalQuestions ? "isGood" : "default");
-    setProgressFillTone("paceGaugeFill", paceTone);
+    setProgressFillTone("paceGaugeFill", paceProgressTone);
 
     const paceStatus = byId("paceStatusNote");
-    if (paceGap < 0) {
-      paceStatus.textContent = `今の目標ペースは必要量より ${Math.abs(paceGap)}問/日 足りません。1日の学習時間を増やすか、今日の問題数を上書きしてください。`;
+    if (needPerDay <= 0) {
+      paceStatus.textContent = `必要量は 0問/日 です。締切ペースは達成済みです。`;
+      paceStatus.classList.remove("isError");
+    } else if (paceGap < 0) {
+      const remainToday = Math.max(0, needPerDay - todayDoneCount);
+      paceStatus.textContent = `今の目標ペースは必要量より ${Math.abs(paceGap)}問/日 足りません。今日の実績は ${todayDoneCount}/${needPerDay}問（残り${remainToday}問）です。1日の学習時間を増やすか、今日の問題数を上書きしてください。`;
       paceStatus.classList.add("isError");
     } else if (paceGap === 0) {
-      paceStatus.textContent = `今の目標ペースで必要量ちょうどです。今日のノルマ ${dailyTarget}問 を崩さなければ締切線に乗ります。`;
+      const remainToday = Math.max(0, needPerDay - todayDoneCount);
+      paceStatus.textContent = `今の目標ペースで必要量ちょうどです。今日の実績は ${todayDoneCount}/${needPerDay}問（残り${remainToday}問）。今日のノルマ ${dailyTarget}問 を崩さなければ締切線に乗ります。`;
       paceStatus.classList.remove("isError");
     } else {
-      paceStatus.textContent = `今の目標ペースは必要量より ${paceGap}問/日 余裕があります。残り${remainingQuestions}問なら、今の設定で ${forecastDays}日ほどで消化見込みです。`;
+      const remainToday = Math.max(0, needPerDay - todayDoneCount);
+      paceStatus.textContent = `今の目標ペースは必要量より ${paceGap}問/日 余裕があります。今日の実績は ${todayDoneCount}/${needPerDay}問（残り${remainToday}問）。残り${remainingQuestions}問なら、今の設定で ${forecastDays}日ほどで消化見込みです。`;
       paceStatus.classList.remove("isError");
     }
 
@@ -4147,7 +4207,7 @@
 
     if (needPerDay > targetPerDay) {
       note += ` 残り${remainingQuestions}問に対して必要量(${needPerDay}問/日)に不足するため、時間増加か問題数上書きを推奨。`;
-    } else if (pacePercent >= 100) {
+    } else if (targetPerDay >= needPerDay) {
       note += " 現在の設定ペースは必要量を満たしています。";
     }
 
@@ -4185,7 +4245,8 @@
   function renderSettings() {
     byId("dailyMinutesInput").value = String(state.settings.dailyMinutes);
     byId("targetPerfectRoundsInput").value = String(state.settings.targetPerfectRounds);
-    byId("todayQuestionOverrideInput").value = state.settings.todayQuestionOverride;
+    const todayOverride = getTodayQuestionOverrideCount();
+    byId("todayQuestionOverrideInput").value = todayOverride > 0 ? String(todayOverride) : "";
     byId("drillSourceModeSelect").value = normalizeDrillSourceMode(state.settings.drillSourceMode);
 
     const authLine = firebaseUser && firebaseUser.uid
@@ -4544,15 +4605,8 @@
     list.innerHTML = "";
     preview.innerHTML = "";
 
-    const plannedCount = state.todayPlan.tasks.reduce((sum, task) => sum + Math.max(0, Number(task.count) || 0), 0);
-    let doneCount = 0;
-    for (const task of state.todayPlan.tasks) {
-      const progress = state.progress[task.topicId] || defaultProgress();
-      const baseRaw = Number(task.attemptBase);
-      const attemptBase = Number.isFinite(baseRaw) ? Math.max(0, Math.round(baseRaw)) : progress.attempts;
-      const delta = Math.max(0, progress.attempts - attemptBase);
-      doneCount += Math.min(task.count, delta);
-    }
+    const plannedCount = getTodayPlannedCount();
+    const doneCount = getTodayDoneCount();
 
     if (state.todayPlan.tasks.length === 0) {
       const li = document.createElement("li");
@@ -4611,6 +4665,19 @@
 
   function getTodayPlannedCount() {
     return state.todayPlan.tasks.reduce((sum, task) => sum + Math.max(0, Number(task.count) || 0), 0);
+  }
+
+  function getTodayDoneCount() {
+    let doneCount = 0;
+    for (const task of state.todayPlan.tasks) {
+      const progress = state.progress[task.topicId] || defaultProgress();
+      const baseRaw = Number(task.attemptBase);
+      const attemptBase = Number.isFinite(baseRaw) ? Math.max(0, Math.round(baseRaw)) : progress.attempts;
+      const delta = Math.max(0, progress.attempts - attemptBase);
+      const taskCount = Math.max(0, Number(task.count) || 0);
+      doneCount += Math.min(taskCount, delta);
+    }
+    return doneCount;
   }
 
   function renderPrimerBook() {
@@ -4733,7 +4800,6 @@
       byId("drillEasyLine").textContent = "";
       byId("drillExplanationLine").textContent = "";
       byId("drillPitfallLine").textContent = "";
-      byId("drillTermsLine").textContent = "";
       return;
     }
 
@@ -4845,7 +4911,8 @@
       choicesWrap.classList.remove("hidden");
       choicesWrap.innerHTML = detail.choices
         .map((choice, index) => {
-          const label = `${index + 1}. ${choice}`;
+          const labelText = formatReadableMultilineText(String(choice || "").trim(), 40);
+          const label = `${index + 1}. ${labelText}`;
           const disabled = showResult ? "disabled" : "";
           let mark = "";
           let markClass = "";
@@ -4882,19 +4949,16 @@
 
       if (isWritten) {
         const canonical = String(detail.answer || detail.choices[detail.correctIndex] || "").trim();
-        byId("drillChoiceLine").textContent = `あなたの回答: ${state.drill.writtenAnswer || "未入力"} / 模範要点: ${canonical}`;
+        byId("drillChoiceLine").textContent = `模範要点: ${canonical}`;
       } else if (isMulti) {
-        byId("drillChoiceLine").textContent = buildMultiAnswerCompareLine(detail, state.drill.multiAnswer);
+        byId("drillChoiceLine").textContent = buildMultiAnswerCompareLine(detail);
       } else {
-        const picked = detail.choices[state.drill.selectedChoice] || "未選択";
         const correct = detail.choices[detail.correctIndex] || "";
-        byId("drillChoiceLine").textContent = `あなたの回答: ${picked} / 正解: ${correct}`;
+        byId("drillChoiceLine").textContent = `正解: ${correct}`;
       }
       byId("drillEasyLine").textContent = buildFriendlyDrillNote(current.topic, detail);
       byId("drillExplanationLine").textContent = `解説: ${enhanceExplanationLine(detail.explanation, detail)}`;
       byId("drillPitfallLine").textContent = `間違えやすい点: ${enhancePitfallLine(detail.pitfall, detail)}`;
-      const trendTail = detail.trendTag ? ` / ${detail.trendTag}` : "";
-      byId("drillTermsLine").textContent = `関連用語: ${detail.terms.join(" / ")}${trendTail}`;
       byId("drillMessage").textContent = state.drill.message || "解説を確認したら次の問題へ進んでください。";
       return;
     }
@@ -4911,7 +4975,6 @@
     byId("drillEasyLine").textContent = "";
     byId("drillExplanationLine").textContent = "";
     byId("drillPitfallLine").textContent = "";
-    byId("drillTermsLine").textContent = "";
     if (state.drill.message) {
       byId("drillMessage").textContent = state.drill.message;
     } else if (isWritten) {
@@ -4953,7 +5016,10 @@
     byId("questionAnswerInput").value = detail.answer;
     byId("questionExplanationInput").value = detail.explanation;
     byId("questionPitfallInput").value = detail.pitfall;
-    byId("questionTermsInput").value = detail.terms.join(", ");
+    const termsInput = document.getElementById("questionTermsInput");
+    if (termsInput) {
+      termsInput.value = detail.terms.join(", ");
+    }
     byId("questionEditorMessage").textContent = state.questionEditor.message || "";
   }
 
@@ -6007,16 +6073,12 @@
     return items;
   }
 
-  function buildMultiAnswerCompareLine(detail, answerMap) {
+  function buildMultiAnswerCompareLine(detail) {
     const correct = detail && detail.multiCorrect && typeof detail.multiCorrect === "object"
       ? detail.multiCorrect
       : {};
-    const selected = answerMap && typeof answerMap === "object"
-      ? answerMap
-      : {};
-    const picked = `ア:${selected.a || "-"} イ:${selected.i || "-"} ウ:${selected.u || "-"} エ:${selected.e || "-"}`;
     const exact = `ア:${correct["ア"] || "-"} イ:${correct["イ"] || "-"} ウ:${correct["ウ"] || "-"} エ:${correct["エ"] || "-"}`;
-    return `あなたの回答: ${picked} / 正解: ${exact}`;
+    return `正解: ${exact}`;
   }
 
   function buildWrittenKeywords(text) {
@@ -6863,18 +6925,53 @@
 
   function buildExamStylePrompt(topic, detail, modeLabel) {
     const trend = detail.trendTag || PAST5_TREND_BY_TOPIC[topic.id] || "";
-    const head = `${modeLabel}問題: ${topic.name}に関する次の記述のうち、最も妥当なものはどれか。`;
-    if (trend) {
-      return `${head}\n（論点: ${trend}）`;
+    const rawPrompt = String(detail && detail.prompt || "")
+      .replace(/^【[^】]*】/u, "")
+      .replace(/\r\n?/g, "\n")
+      .trim();
+    const head = `${modeLabel}問題: ${topic.name}`;
+
+    if (rawPrompt) {
+      if (trend) {
+        return `${head}\n（論点: ${trend}）\n\n${rawPrompt}`;
+      }
+      return `${head}\n\n${rawPrompt}`;
     }
-    return head;
+
+    const fallback = `${topic.name}に関する次の記述のうち、最も妥当なものはどれか。`;
+    if (trend) {
+      return `${head}\n（論点: ${trend}）\n\n${fallback}`;
+    }
+    return `${head}\n\n${fallback}`;
   }
 
   function buildDrillPromptText(rawPrompt, formatLabel) {
     const prompt = String(rawPrompt || "")
       .replace(/^【[^】]*】/u, "")
+      .replace(/\r\n?/g, "\n")
       .trim();
-    return `[${formatLabel}] ${prompt || "次の設問に答えなさい。"}`;
+    const body = formatReadableMultilineText(prompt || "次の設問に答えなさい。", 70);
+    return `[${formatLabel}]\n\n${body}`;
+  }
+
+  function formatReadableMultilineText(rawText, minLength = 60) {
+    const text = String(rawText || "")
+      .replace(/\r\n?/g, "\n")
+      .trim();
+    if (!text) {
+      return "";
+    }
+    if (text.includes("\n")) {
+      return text;
+    }
+    if (text.length < minLength) {
+      return text;
+    }
+    return text
+      .replace(/([。．!?！？])/gu, "$1\n")
+      .replace(/(ただし|なお|また|この場合|次のうち|最も|一方で|したがって)/gu, "\n$1")
+      .replace(/\n{2,}/g, "\n")
+      .trim();
   }
 
   function buildSectionPreStudyAccordionHtml(topic, section, options = {}) {
@@ -6966,7 +7063,11 @@
       .map((choice, index) => {
         const text = normalizeExamStyleChoice(choice);
         const label = `${labels[index]}. ${text}`;
-        return `<button type="button" class="choiceBtn" data-choice-index="${index}">${escapeHtml(label)}</button>`;
+        return `
+          <button type="button" class="choiceBtn" data-choice-index="${index}">
+            <span class="choiceText">${escapeHtml(label)}</span>
+          </button>
+        `;
       })
       .join("");
   }
@@ -7217,10 +7318,41 @@
     return Math.ceil(effort);
   }
 
-  function getDailyTargetCount() {
+  function clearExpiredTodayQuestionOverride() {
+    if (state.settings.todayQuestionOverride === "") {
+      if (state.settings.todayQuestionOverrideDate !== "") {
+        state.settings.todayQuestionOverrideDate = "";
+        return true;
+      }
+      return false;
+    }
+
+    const today = todayISO();
+    if (!isISODate(state.settings.todayQuestionOverrideDate) || state.settings.todayQuestionOverrideDate !== today) {
+      state.settings.todayQuestionOverride = "";
+      state.settings.todayQuestionOverrideDate = "";
+      return true;
+    }
+
+    return false;
+  }
+
+  function getTodayQuestionOverrideCount() {
+    if (clearExpiredTodayQuestionOverride()) {
+      return 0;
+    }
+
     const override = Number(state.settings.todayQuestionOverride);
-    if (Number.isFinite(override) && override > 0) {
-      return Math.round(override);
+    if (!Number.isFinite(override) || override <= 0) {
+      return 0;
+    }
+    return Math.round(override);
+  }
+
+  function getDailyTargetCount() {
+    const todayOverride = getTodayQuestionOverrideCount();
+    if (todayOverride > 0) {
+      return todayOverride;
     }
 
     return getNeedBasedQuestions();
